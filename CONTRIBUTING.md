@@ -1,10 +1,15 @@
 # How to Contribute
 
-##Bug Reports:
-If you find a bug, please open an issue with a clear description, steps to reproduce, and any relevant screenshots or logs.
 
-## Feature Requests:
+
+* ## Bug Reports:
+  If you find a bug, please open an issue with a clear description, steps to reproduce, and any relevant screenshots or logs.
+
+
+
+* ## Feature Requests:
 If you have an idea for a new feature, feel free to open an issue and describe your idea in detail. Let's discuss it before you start coding!
+
 
 ## Pull Requests:
 

@@ -45,7 +45,7 @@ def termino_antibot_key():
         try:
             # Extrahiere den antibot_key, der möglicherweise durch JavaScript gesetzt wurde
             antibot_key = driver.find_element(By.NAME, "antibot_key").get_attribute("value")
-            sleep_time = random.uniform(1, 3)  
+            sleep_time = random.uniform(2, 5)  
             #print(f"Warte {sleep_time:.2f} Sekunden...")
             time.sleep(sleep_time)
 
@@ -414,12 +414,40 @@ def deleting_bookings(kekse, editing_url, to_remove_ids, today):
     
     driver.quit()
 
-            
-more_app_index = 1
 
-def new_appointment(datum_zu_eintragen, zeit, place, short_id, driver):
+
+
+
+
+
+
+
+
+################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################################################
+
+
+           
+
+
+def new_appointment(datum_zu_eintragen, zeit, place, short_id, driver, more_app_index):
     
-    global more_app_index
     
     if more_app_index == 1:
         button_id = "edit-field-flagcollection-und-add-more"
@@ -454,13 +482,13 @@ def new_appointment(datum_zu_eintragen, zeit, place, short_id, driver):
     
     try:
         
-        # Warte bis das Datumsfeld verfügbar ist
+        
         time_field = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, f"{short_id}-field-optiondate-und-0-value-timeEntry-popup-1"))
         )
         time_field.click()
         print(f"{zeit} wurde eingefügt")
-        # Trage das Datum ein
+        
         time_field.send_keys(zeit)
         
     except Exception as e:
@@ -472,22 +500,34 @@ def new_appointment(datum_zu_eintragen, zeit, place, short_id, driver):
     try:
 
         
-        # Warte bis das Datumsfeld verfügbar ist
+        
         place_field = WebDriverWait(driver, 10).until(
             EC.element_to_be_clickable((By.ID, f"{short_id}-weight"))
         )
         place_field.click()
-        print(f"der Termin wurde an {place}. Stelle eingefügt")
-        # Trage das Datum ein
-        place_field.send_keys(place)
+        print(f"der Termin wurde an {place - 1}. Stelle eingefügt")
+        
+        insert_place = int(place - 1)
+        
+        if insert_place == 1:
+            insert_place = 11
+        elif insert_place == 11:
+            insert_place = 1111
+        
+        print(insert_place)
+            
+        place_field.send_keys(insert_place)
+        
+        time.sleep(2)  
         
     except Exception as e:
         print(f"Fehler beim Eintragen des places: {e}")
     
     more_app_index += 1
     
-    print(f"neuer Termin: ({datum_zu_eintragen} {zeit}) wurde erstellt und als {place}. Termin bei Termino eingefügt\n\n")
+    print(f"neuer Termin: ({datum_zu_eintragen} {zeit}) wurde erstellt und als {place-1}. Termin bei Termino eingefügt\n\n")
     
+    return more_app_index
 
 def insert_new_app_in_termino(kekse, editing_url, df_kombiniert):
     
@@ -522,14 +562,15 @@ def insert_new_app_in_termino(kekse, editing_url, df_kombiniert):
 
     time.sleep(2) 
 
-
+    more_app_index = 1
+    
     for _, row in df_kombiniert[df_kombiniert['Neuer_Termin'] == True].iterrows():
         datum_zu_eintragen = row['Date']
         zeit = row['Time']
         place = row['Place']
         short_id = row['Short ID']
 
-        new_appointment(datum_zu_eintragen, zeit, place, short_id, driver)
+        new_appointment(datum_zu_eintragen, zeit, place, short_id, driver, more_app_index)
 
 
 
@@ -552,3 +593,7 @@ def insert_new_app_in_termino(kekse, editing_url, df_kombiniert):
     time.sleep(5)
 
     driver.quit()
+
+
+
+

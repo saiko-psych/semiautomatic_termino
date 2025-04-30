@@ -88,7 +88,7 @@ def main():
         print("email_vl: ", email_vl)
         print("date_vl: ", date_vl)
         print("time_vl: ", time_vl)
-        #vl_mail(env_data, config_data, name_vl, email_vl, time_vl, tomorrow_time, tomorrow_name, tomorrow_email, tomorrow)
+        vl_mail(env_data, config_data, name_vl, email_vl, time_vl, tomorrow_time, tomorrow_name, tomorrow_email, tomorrow)
     
         differenz_termino, zukuenftige_ereignisse = data_prep(tomorrow, df_termino)
         if len(differenz_termino["Place"]) > 0:

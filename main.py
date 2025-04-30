@@ -37,7 +37,6 @@ from utils.extensions import download_g_s, google_dp, data_prep, data_prep_2
 
 
 
-
 def main():
 
     os.chdir(Path(__file__).parent)
@@ -81,7 +80,7 @@ def main():
     print(EXTENSIONS)
     time.sleep(2)
     
-    if config_data['implement_google'] ==1:
+    if config_data['implement_google'] == 1:
         download_g_s(env_data, config_data) 
         name_vl, email_vl, date_vl, time_vl = google_dp(tomorrow)
         print("tomorrow_time: ", tomorrow_time)
@@ -89,14 +88,15 @@ def main():
         print("email_vl: ", email_vl)
         print("date_vl: ", date_vl)
         print("time_vl: ", time_vl)
-        vl_mail(env_data, config_data, name_vl, email_vl, time_vl, tomorrow_time, tomorrow_name, tomorrow_email, tomorrow)
+        #vl_mail(env_data, config_data, name_vl, email_vl, time_vl, tomorrow_time, tomorrow_name, tomorrow_email, tomorrow)
     
-    differenz_termino, zukuenftige_ereignisse = data_prep(tomorrow, df_termino)
-    if len(differenz_termino["Place"]) > 0:
-        termin_missing(env_data, config_data, differenz_termino)
+        differenz_termino, zukuenftige_ereignisse = data_prep(tomorrow, df_termino)
+        if len(differenz_termino["Place"]) > 0:
+            termin_missing(env_data, config_data, differenz_termino)
         
-    df_kombiniert = data_prep_2(zukuenftige_ereignisse, df_termino)
-    insert_new_app_in_termino(kekse, editing_url, df_kombiniert)
+        df_kombiniert = data_prep_2(zukuenftige_ereignisse, df_termino)
+        
+        insert_new_app_in_termino(kekse, editing_url, df_kombiniert)
     
     
 if __name__ == "__main__":

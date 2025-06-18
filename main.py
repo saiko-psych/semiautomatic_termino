@@ -38,6 +38,32 @@ from utils.extensions import download_g_s, google_dp, data_prep, data_prep_2
 
 
 def main():
+    """
+    Main function that orchestrates the full Termin-Management workflow.
+    
+    This function performs the following steps:
+    1. Sets the working directory.
+    2. Displays initial ASCII art and pauses briefly.
+    3. Creates today's and tomorrow's date objects.
+    4. Loads environment and configuration data.
+    5. Prints configuration info to the console.
+    6. Authenticates with the Termino system and retrieves session info.
+    7. Downloads the current booking list as a CSV.
+    8. Prepares booking data and sends initial notification emails.
+    9. Sends reminder emails for upcoming bookings.
+    10. Cleans up expired bookings from the system.
+    11. (Optional) Integrates with Google services to process additional bookings:
+        - Downloads Google Sheet data.
+        - Sends verification or reminder emails.
+        - Detects missing bookings.
+        - Inserts new appointments into Termino if needed.
+    
+    This function depends on external helper functions and environment variables
+    defined in configuration files.
+    
+    Returns:
+        None
+    """
 
     os.chdir(Path(__file__).parent)
     
@@ -74,7 +100,8 @@ def main():
     editing_url = f"https://www.termino.gv.at/meet/de/node/{buchungsliste_nummer}/edit"
     df_termino = termino_bookings(session_id, editing_url)
     to_remove_ids = get_ids_to_remove(df_termino, today_as_datetime, tomorrow_as_datetime, tomorrow_time)
-    deleting_bookings(kekse, editing_url, to_remove_ids, today)
+    if to_remove_ids:
+        deleting_bookings(kekse, editing_url, to_remove_ids, today)
     
     
     print(EXTENSIONS)
@@ -91,12 +118,14 @@ def main():
         vl_mail(env_data, config_data, name_vl, email_vl, time_vl, tomorrow_time, tomorrow_name, tomorrow_email, tomorrow)
     
         differenz_termino, zukuenftige_ereignisse = data_prep(tomorrow, df_termino)
+        
         if len(differenz_termino["Place"]) > 0:
             termin_missing(env_data, config_data, differenz_termino)
         
         df_kombiniert = data_prep_2(zukuenftige_ereignisse, df_termino)
         
-        insert_new_app_in_termino(kekse, editing_url, df_kombiniert)
+        if df_kombiniert["Neuer_Termin"].any():
+            insert_new_app_in_termino(kekse, editing_url, df_kombiniert)
     
     
 if __name__ == "__main__":

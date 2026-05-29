@@ -1,0 +1,38 @@
+{
+    "_comment": "Copy this file to config.json and fill in your lab's values. Then run: python -m utils.secrets set --termino  (and similar for other secrets).",
+
+    "booking_list": "YOUR_TERMINO_BOOKING_LIST_NAME",
+    "study_name": "YourStudyName",
+    "study_location": "Your Street 1, 1234 City",
+    "contact_mail": "your-study-contact@example.org",
+    "booking_url": "https://www.termino.gv.at/meet/de/b/REPLACE_WITH_YOUR_BOOKING_URL",
+
+    "actual_list_printing": 2,
+    "fist_mail_recieved_printing": 2,
+    "to_send_first_mail": 2,
+    "implement_google": 1,
+    "information": "information",
+
+    "mail_provider": {
+        "_comment_type": "Pick one: 'uni-graz-ews' (Outlook/Exchange Web Services), or 'yahoo-smtp' (Yahoo SMTP with app-password).",
+        "type": "uni-graz-ews",
+        "username": "your.account@edu.uni-graz.at"
+    },
+
+    "sheet_provider": {
+        "_comment_type": "Pick one: 'unicloud' (Nextcloud WebDAV at cloud.uni-graz.at) or 'google' (legacy Google Sheets download).",
+        "type": "unicloud",
+        "username": "your.nextcloud_username",
+        "xlsx_path": "/path/inside/nextcloud/versuchsleiter.xlsx",
+        "main_sheet": "Zeittabelle",
+        "info_sheet": "information"
+    },
+
+    "calendar_provider": {
+        "_comment_type": "Pick one: 'none' (skip calendar entirely), 'unicloud-caldav' (Nextcloud calendar at cloud.uni-graz.at), or 'uni-graz-ews' (Outlook calendar).",
+        "type": "none",
+        "_comment_username": "If type != 'none', set: 'username': 'your.nextcloud_username' or 'your.account@edu.uni-graz.at'.",
+        "_comment_calendar_name": "If type != 'none', set: 'calendar_name': 'YourCalendarName'.",
+        "_comment_share": "Optional: add 'share_with': ['user1', 'user2'] to auto-share the calendar with VLs."
+    }
+}

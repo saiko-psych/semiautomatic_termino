@@ -1,0 +1,19 @@
+Hallo $NAME,
+
+wir freuen uns, dass Sie an unserer Studie $STUDYNAME teilnehmen!
+
+Mit dieser E-Mail moechten wir Sie an Ihren Termin morgen ($DATE um $TIME Uhr)
+erinnern.
+
+Wo: $LOCATION
+
+# ---------------------------------------------------------------------
+# REPLACE THIS BLOCK WITH ANY STUDY-SPECIFIC REMINDERS
+# (parking, what to bring, eat beforehand, etc.)
+# ---------------------------------------------------------------------
+
+Bei Fragen melden Sie sich bitte unter $MAIL.
+
+Wir freuen uns auf Sie!
+
+Ihr Studienteam

@@ -1,0 +1,78 @@
+# ===========================================================================
+# Termino-Skript .gitignore
+# ===========================================================================
+# Goal: keep per-lab configuration, per-day runtime state, secrets, and
+# personal templates OUT of git. Only generic, sharable files belong here.
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.venv/
+venv/
+
+# --- Environment / secrets ---
+sensible.env
+sensible.env.*
+.env
+.env.local
+
+# --- Runtime state (per-day, NEVER commit) ---
+status.json
+status.json.bak*
+session.json
+data/
+debug_termino/
+
+# --- Per-lab configuration (each install has its own) ---
+config.json
+config.backup.*.json
+config.tmp.json
+config.pretty.json
+
+# --- Per-lab e-mail templates (each install customizes its own) ---
+templates/first_email.txt
+templates/reminder.txt
+
+# --- Temporary template files / Excel backups ---
+templates/versuchsleiter.backup.*.xlsx
+templates/versuchsleiter.new.xlsx
+templates/versuchsleiter.current.xlsx
+
+# --- Dev workflow files (local-only) ---
+NEXT_COMMIT.md
+bug_fixing.py
+tools/prepare_for_github.ps1
+tools/finalize_v2_release.ps1
+
+# --- General backup catch-all ---
+*.bak
+*.bak-*
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+.spyderproject
+.spyproject
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Test artefacts ---
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- v1 dead code (replaced in v2: config.py -> setup.py; requirements.txt -> pyproject.toml + uv.lock) ---
+config.py
+requirements.txt
+
+# --- Lab-specific spreadsheet (each install has its own versuchsleiter.xlsx) ---
+templates/versuchsleiter.xlsx

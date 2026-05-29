@@ -1,0 +1,24 @@
+Betreff: Willkommen zur Studie!
+
+Hallo $NAME,
+
+wir freuen uns, dass Sie an unserer Studie $STUDYNAME teilnehmen!
+Hiermit bestaetigen wir Ihre Buchung fuer den Termin am $DATE um $TIME.
+
+# ---------------------------------------------------------------------
+# REPLACE THIS BLOCK WITH YOUR OWN STUDY DESCRIPTION
+# (criteria, duration, what participants should bring, etc.)
+# ---------------------------------------------------------------------
+
+Ort der Untersuchung: $LOCATION
+
+Wenn Sie ankommen, treten Sie ein und melden Sie sich bitte am Empfang.
+
+Bei Fragen melden Sie sich bitte unter $MAIL.
+
+Falls der gewaehlte Termin doch nicht passt, stornieren Sie ihn bitte
+und buchen Sie einen neuen Termin ueber den folgenden Link:
+$BOOKING_URL
+
+Viele Gruesse,
+Ihr Studienteam

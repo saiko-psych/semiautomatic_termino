@@ -303,7 +303,7 @@ def get_buchungsliste_nummer(session_id, buchungslisten_url, config_data):
     booking_text = r.text 
 
     # Regex pattern to find the number before the specified name
-    pattern = rf'<a href="/meet/de/b/[a-f0-9]+-(\d+)">{config_data['booking_list']}</a>'
+    pattern = rf'<a href="/meet/de/b/[a-f0-9]+-(\d+)">{config_data["booking_list"]}</a>'
 
     # Perform search
     match = re.search(pattern, booking_text)

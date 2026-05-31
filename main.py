@@ -41,7 +41,7 @@ from utils.calendar_sinks import (
 )
 from utils.extensions import download_g_s, google_dp, data_prep, data_prep_2
 from utils.run_report import RunReport
-from utils.vpn import warn_if_not_connected
+from utils.vpn import warn_if_not_connected, is_vpn_connected
 
 
 def _resolve_mail_provider(config_data: dict, env_data: dict) -> dict:
@@ -668,11 +668,18 @@ def main() -> None:
             report.finalize()
             print()
             print(report.to_console_summary())
-            sent = report.send(sender, env_data, config_data)
-            if sent:
-                print(f"  -> Daily-Report per Mail an {report.sent_to} verschickt")
+            # Phase A.5: skip the 120s EWS connect-timeout when VPN clearly down.
+            # The user already saw the VPN warning at the top of the run.
+            mail_type = provider_cfg.get("type", "")
+            if mail_type == "uni-graz-ews" and not is_vpn_connected():
+                print(f"  ! Skipped daily-report mail "
+                      f"({mail_type} unreachable - VPN warning shown at start)")
             else:
-                print(f"  ! Mail-Bericht konnte nicht verschickt werden")
+                sent = report.send(sender, env_data, config_data)
+                if sent:
+                    print(f"  -> Daily-Report per Mail an {report.sent_to} verschickt")
+                else:
+                    print(f"  ! Mail-Bericht konnte nicht verschickt werden")
             if workflow_crashed:
                 # Exit cleanly: report has been sent, traceback would only
                 # be noise on top of the structured error already in the report.

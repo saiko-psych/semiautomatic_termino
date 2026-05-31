@@ -197,7 +197,7 @@ def collect_user_inputs() -> tuple:
         "actual_list_printing": 2,
         "fist_mail_recieved_printing": 2,
         "to_send_first_mail": 2,
-        "implement_google": implement_google,
+        "implement_sheet_sync": implement_google,  # legacy: was implement_google
         "information": information,
         "mail_provider": {
             "type": provider,

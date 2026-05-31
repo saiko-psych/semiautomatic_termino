@@ -197,7 +197,7 @@ def config_text(config_data, env_data):
     else:
         print("\n")
 
-    if config_data['implement_google'] == 1:
+    if config_data.get('implement_sheet_sync', config_data.get('implement_google')) == 1:
         sp = config_data.get("sheet_provider") or {}
         sp_type = sp.get("type", "google")
         if sp_type == "unicloud":

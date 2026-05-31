@@ -481,7 +481,7 @@ def _run_workflow(
     df_termino = termino_bookings(termino_session.session_id, editing_url)
 
     # Optional: Google Sheets / uniCLOUD spreadsheet integration
-    if config_data.get('implement_google') == 1:
+    if config_data.get('implement_sheet_sync', config_data.get('implement_google')) == 1:
 
         # Task 4: Notify supervisors
         print("\n" + "=" * 60)

@@ -41,6 +41,7 @@ from utils.calendar_sinks import (
 )
 from utils.extensions import download_g_s, google_dp, data_prep, data_prep_2
 from utils.run_report import RunReport
+from utils.vpn import warn_if_not_connected
 
 
 def _resolve_mail_provider(config_data: dict, env_data: dict) -> dict:
@@ -618,6 +619,12 @@ def main() -> None:
     # Build the mail sender once for the entire run.
     provider_cfg = _resolve_mail_provider(config_data, env_data)
     print(f"\nMail provider: {provider_cfg['type']} as {provider_cfg.get('username')}")
+
+    # Pre-flight: warn early if EWS is configured but the host is unreachable.
+    # Non-blocking - we still run the workflow (Termino-Sync, Calendar etc.
+    # don't need VPN), but the user sees the diagnosis up front instead of
+    # after a 120s timeout on the final mail step. See utils/vpn.py.
+    warn_if_not_connected(provider_cfg["type"])
 
     # Build the calendar sink. Defaults to NoOp when calendar_provider
     # is absent from config.json - i.e. nothing is written anywhere.

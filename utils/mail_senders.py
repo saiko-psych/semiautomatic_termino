@@ -39,6 +39,28 @@ Construction
 The ``provider_config`` dict is the per-user config (see PLAN.md, Phase 1).
 ``secrets_getter`` lets tests inject a fake secret lookup; in production it's
 the keyring wrapper from ``utils.secrets``.
+
+Credential source per provider
+------------------------------
+Both senders look up their password in the OS keyring via the
+``secrets_getter`` callable. The two providers use DIFFERENT keyring
+slots, by convention:
+
+YahooSmtpSender
+    Reads ``termino-uni/yahoo-app-pw``. Set via
+    ``python -m utils.secrets set --termino``.
+
+UniGrazEwsSender
+    Reads the user's UGO login password from
+    ``openconnect-sso/<username>`` - the SAME slot that openconnect-sso
+    populates for the VPN login. This is intentional: EWS Basic Auth
+    accepts the regular Uni-Graz login password, and we want one place
+    to update it when the password rotates (UGO-PWs expire every ~6
+    months). Set via ``python -m utils.secrets set --email <addr> --vpn``.
+
+So the VPN setup automatically also sets up EWS. No separate Mail-PW
+step needed (the ``termino-uni/uni-mail-pw`` slot is for the legacy
+SMTP-via-mailproxy path only and is unused by the EWS sender).
 """
 
 from __future__ import annotations

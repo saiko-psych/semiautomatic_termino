@@ -234,6 +234,26 @@ Migration from a legacy plaintext `sensible.env`:
 uv run python tools/migrate_env_to_keyring.py
 ```
 
+### EWS Credential Source (technical)
+
+The Uni-Graz EWS mail backend (`mail_provider.type: "uni-graz-ews"`) reads
+the user's UGO login password from the **openconnect-sso namespace**, not
+from a separate Termino-Skript slot. This is by design - EWS Basic Auth
+accepts the regular Uni login password (same as VPN login), and we want
+**one** rotation point when the UGO-PW expires.
+
+Practical consequence: running
+
+```bash
+python -m utils.secrets set --email <your-mail@edu.uni-graz.at> --vpn
+```
+
+sets up BOTH the VPN tunnel password AND the EWS auth in one go. No
+separate step needed for EWS mail.
+
+The `uni-mail-pw` slot in the `termino-uni` namespace is for the legacy
+SMTP-via-mailproxy.uni-graz.at path only - leave it unset if you use EWS.
+
 ### Headless / Server setup (no interactive desktop)
 
 If you run the script on a server without a desktop session (LXC, Docker,

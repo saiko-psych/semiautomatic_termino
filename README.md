@@ -221,12 +221,25 @@ A friendlier alternative to hand-editing `config.json` is the interactive wizard
 All credentials live in the OS keyring, never in `config.json` and never in `sensible.env`. Manage them with:
 
 ```bash
-uv run python -m utils.secrets set --termino       # Termino account password
-uv run python -m utils.secrets set --email <addr>  # Uni-Graz mail password (EWS)
-uv run python -m utils.secrets set --termino       # also Yahoo app-password if used
+# Termino-script secrets (interactively prompts for each: Termino password,
+# uniCLOUD app-password, Yahoo app-password, etc.)
+uv run python -m utils.secrets set --termino
+
+# VPN + EWS credentials: Uni-Graz login password + TOTP base32 seed,
+# stored under the openconnect-sso namespace so it's shared with the
+# VPN tooling. The EWS mail backend reads from this same slot.
+uv run python -m utils.secrets set --email <your-mail@edu.uni-graz.at> --vpn
+
+# Diagnostics
 uv run python -m utils.secrets list                # show which keys are present
-uv run python -m utils.secrets get --termino       # print one value (be careful)
+uv run python -m utils.secrets get <key>           # print one value (be careful)
 ```
+
+Note: The `uni-mail-pw` slot under `termino-uni` is the legacy Keycloak
+"Mail Password" used only for direct SMTP to `mailproxy.uni-graz.at`. It is
+**NOT** used by the EWS flow - EWS uses the regular login password from
+the `openconnect-sso` namespace above. You can safely skip `uni-mail-pw`
+in `set --termino` unless you've explicitly switched to SMTP.
 
 Migration from a legacy plaintext `sensible.env`:
 

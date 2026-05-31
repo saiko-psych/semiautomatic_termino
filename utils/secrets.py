@@ -90,9 +90,11 @@ TERMINO_KEYS: dict[str, str] = {
     "termino-pw": "Password for the www.termino.gv.at account.",
     "yahoo-app-pw": "Yahoo app password (only needed if a user is configured "
                     "to send via Yahoo).",
-    "uni-mail-pw": "Keycloak 'Mail Password' (works ONLY for SMTP to "
-                   "mailproxy.uni-graz.at - not for EWS). Kept for completeness "
-                   "but not used in the current EWS-based flow.",
+    "uni-mail-pw": "OPTIONAL - only needed if you configured mail_provider.type "
+                   "= 'uni-graz-smtp' (direct SMTP to mailproxy.uni-graz.at). "
+                   "The EWS flow (uni-graz-ews) does NOT use this - it reads "
+                   "the UGO login password from the openconnect-sso namespace. "
+                   "Press Enter to skip if you use EWS or Yahoo.",
 }
 
 # VPN secrets - high-impact, only stored because EWS Basic Auth needs them.
@@ -194,7 +196,10 @@ def _cli_set(args: argparse.Namespace) -> int:
                 set_secret(key, value)
                 print(f"    OK {key} stored.")
             else:
-                print(f"    (kept)")
+                if get_secret(key):
+                    print(f"    (kept existing value)")
+                else:
+                    print(f"    (skipped - leave unset)")
 
     if args.vpn:
         if not args.email:

@@ -76,3 +76,9 @@ requirements.txt
 
 # --- Lab-specific spreadsheet (each install has its own versuchsleiter.xlsx) ---
 templates/versuchsleiter.xlsx
+
+# --- Deployment-Plan (lab-specific, do not push) ---
+SERVER_DEPLOY_PLAN.md
+
+# --- Patch bundle (local-only, applied then deleted) ---
+.patches/

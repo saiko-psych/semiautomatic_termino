@@ -234,6 +234,33 @@ Migration from a legacy plaintext `sensible.env`:
 uv run python tools/migrate_env_to_keyring.py
 ```
 
+### Headless / Server setup (no interactive desktop)
+
+If you run the script on a server without a desktop session (LXC, Docker,
+cron-only VM), the default OS keyring will not work. Use the plaintext file
+backend explicitly:
+
+```bash
+export PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring
+```
+
+Put this in your systemd `EnvironmentFile=` so the daily-cron service picks
+it up. Then set restrictive permissions:
+
+```bash
+chmod 700 ~/.local/share/python_keyring/
+chmod 600 ~/.local/share/python_keyring/keyring_pass.cfg
+```
+
+Plaintext + 0600 has the same security model as encrypted-with-master-
+password-in-a-file (both require filesystem-access protection). It avoids
+an interactive prompt that would block cron.
+
+The encrypted-file backends (`keyrings.cryptfile`, `keyrings.alt`
+EncryptedKeyring) ignore the `KEYRING_CRYPTFILE_PASSWORD` env var in
+practice — they always prompt interactively, which kills cron. Use
+PlaintextKeyring on the server.
+
 ---
 
 ## Daily run

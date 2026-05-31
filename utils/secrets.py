@@ -17,23 +17,32 @@ Backend selection
 The choice is driven by the environment variable ``PYTHON_KEYRING_BACKEND``,
 following the python-keyring convention:
 
-- On David's Linux laptop, nothing is set -> falls back to the OS default
-  (SecretService / KDE Wallet).
-- On the Proxmox LXC, set::
+- On a desktop with an interactive session (KDE / Gnome / macOS / Windows),
+  nothing is set -> the OS default keyring is used (Secret Service / KDE
+  Wallet / Keychain / Credential Manager).
 
-      PYTHON_KEYRING_BACKEND=keyrings.cryptfile.cryptfile.CryptFileKeyring
-      KEYRING_CRYPTFILE_PASSWORD=<master-password>
+- On a headless server / Proxmox LXC / Docker container with daily cron,
+  use the PLAINTEXT file backend with proper Unix permissions::
 
-  in the systemd EnvironmentFile.
+      PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring
 
-  IMPORTANT: do NOT use ``keyrings.alt.file.EncryptedKeyring`` on the
-  server - that one prompts interactively via getpass and has no
-  non-interactive mode. ``keyrings.cryptfile`` was designed exactly for
-  the headless case and reads the master password from the env var
-  ``KEYRING_CRYPTFILE_PASSWORD``.
+  Make sure the directory + file are owner-only readable BEFORE the first
+  ``set_secret`` call::
 
-  pip dependencies for the server: ``keyrings.cryptfile`` and
-  ``pycryptodome`` (transitive).
+      chmod 700 ~/.local/share/python_keyring/
+      chmod 600 ~/.local/share/python_keyring/keyring_pass.cfg
+
+  Why plaintext? The encrypted-file backends
+  (``keyrings.cryptfile.file.EncryptedKeyring``,
+  ``keyrings.alt.file.EncryptedKeyring``) ignore the
+  ``KEYRING_CRYPTFILE_PASSWORD`` env var in practice - they always prompt
+  interactively for the master password, which kills cron. The threat
+  model with PlaintextKeyring is identical to encrypted+master-password-
+  in-file: both require filesystem access protected by mode 0600.
+
+  pip dependency for the server: ``keyrings.alt``.
+
+- On Windows / macOS desktops, leave PYTHON_KEYRING_BACKEND unset.
 
 This module never picks the backend itself - that would couple the code to
 deployment, which is exactly what we want to avoid.

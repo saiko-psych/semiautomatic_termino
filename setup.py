@@ -208,6 +208,35 @@ def collect_user_inputs() -> tuple:
         config_data["sheet_provider"] = sheet_provider_config
     config_data["calendar_provider"] = calendar_provider_config
 
+    # auto_vpn: opt-in Linux-only feature. On Windows/macOS the user starts
+    # Cisco Secure Client manually, so we don't even ask. Default False
+    # so the wizard doesn't push anyone into a setup they didn't ask for.
+    auto_vpn_block = {"enabled": False}
+    if sys.platform == "linux":
+        print()
+        ans = _ask(
+            "Linux server only: enable auto-VPN setup via openconnect-sso?\n"
+            "  Requires the OS-level setup from docs/SERVER_VPN_SETUP.md\n"
+            "  (sudoers, xvfb, openconnect-sso, ...) AND an interactive\n"
+            "  one-time TOTP-seed registration. Most users say 'no' here\n"
+            "  and use the systemd Pre-Hook approach instead.\n"
+            "  (yes/no)",
+            default="no",
+        ).lower()
+        if ans in ("yes", "y", "ja", "j"):
+            auto_vpn_block = {
+                "enabled": True,
+                "user_email": mail,
+                "server": "univpn.uni-graz.at",
+                "use_xvfb": True,
+                "down_on_exit": True,
+                "openconnect_path": "/usr/sbin/openconnect",
+                "openconnect_sso_path":
+                    "/home/termino/.local/bin/openconnect-sso",
+                "pid_file": "/tmp/oc-termino.pid",
+            }
+    config_data["auto_vpn"] = auto_vpn_block
+
     return env_data, config_data, provider
 
 

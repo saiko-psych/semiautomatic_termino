@@ -96,6 +96,16 @@ dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
 ]
+# Linux-server-only deps for auto_vpn (utils/auto_vpn.py). Pulls in the
+# Python wrapper around the Cisco SSL VPN client. NOT installed by
+# default - opt in with `uv sync --extra linux-vpn`.
+#
+# Pins from the live deployment (2026-05-30): openconnect-sso v0.8.1
+# imports pkg_resources, which setuptools 70+ removed.
+linux-vpn = [
+    "openconnect-sso>=0.8.1 ; sys_platform == 'linux'",
+    "setuptools<70 ; sys_platform == 'linux'",
+]
 
 [project.urls]
 Homepage = "https://github.com/saiko-psych/semiautomatic_termino"

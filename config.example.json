@@ -1,24 +1,20 @@
 {
     "_comment": "Copy this file to config.json and fill in your lab's values. Then run: python -m utils.secrets set --termino  (and similar for other secrets).",
-
     "booking_list": "YOUR_TERMINO_BOOKING_LIST_NAME",
     "study_name": "YourStudyName",
     "study_location": "Your Street 1, 1234 City",
     "contact_mail": "your-study-contact@example.org",
     "booking_url": "https://www.termino.gv.at/meet/de/b/REPLACE_WITH_YOUR_BOOKING_URL",
-
     "actual_list_printing": 2,
     "fist_mail_recieved_printing": 2,
     "to_send_first_mail": 2,
     "implement_sheet_sync": 1,
     "information": "information",
-
     "mail_provider": {
         "_comment_type": "Pick one: 'uni-graz-ews' (Outlook/Exchange Web Services), or 'yahoo-smtp' (Yahoo SMTP with app-password).",
         "type": "uni-graz-ews",
         "username": "your.account@edu.uni-graz.at"
     },
-
     "sheet_provider": {
         "_comment_type": "Pick one: 'unicloud' (Nextcloud WebDAV at cloud.uni-graz.at) or 'google' (legacy Google Sheets download).",
         "type": "unicloud",
@@ -27,12 +23,22 @@
         "main_sheet": "Zeittabelle",
         "info_sheet": "information"
     },
-
     "calendar_provider": {
         "_comment_type": "Pick one: 'none' (skip calendar entirely), 'unicloud-caldav' (Nextcloud calendar at cloud.uni-graz.at), or 'uni-graz-ews' (Outlook calendar).",
         "type": "none",
         "_comment_username": "If type != 'none', set: 'username': 'your.nextcloud_username' or 'your.account@edu.uni-graz.at'.",
         "_comment_calendar_name": "If type != 'none', set: 'calendar_name': 'YourCalendarName'.",
         "_comment_share": "Optional: add 'share_with': ['user1', 'user2'] to auto-share the calendar with VLs."
+    },
+    "auto_vpn": {
+        "_comment_enabled": "Linux server only. If true, the script auto-spawns openconnect-sso to authenticate (SAML/Keycloak) and openconnect to bring up the VPN tunnel before the daily workflow, tearing it down after. Requires the OS-level setup from docs/SERVER_VPN_SETUP.md (sudoers, xvfb, openconnect-sso, ...). On Windows/macOS leave this disabled and start Cisco Secure Client manually.",
+        "enabled": false,
+        "user_email": "your-account@edu.uni-graz.at",
+        "server": "univpn.uni-graz.at",
+        "use_xvfb": true,
+        "down_on_exit": true,
+        "openconnect_path": "/usr/sbin/openconnect",
+        "openconnect_sso_path": "/home/termino/.local/bin/openconnect-sso",
+        "pid_file": "/tmp/oc-termino.pid"
     }
 }

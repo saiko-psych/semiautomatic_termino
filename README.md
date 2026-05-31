@@ -318,75 +318,71 @@ PlaintextKeyring on the server.
 
 ## VPN setup (only for EWS)
 
-If your `mail_provider.type` is `"uni-graz-ews"`, the script needs to reach
-`webmail.uni-graz.at`, which is only accessible from inside the Uni-Graz
-network. From off-campus, bring up the Cisco AnyConnect / Secure Client VPN
-before running. **Yahoo SMTP needs no VPN; skip this section if you use
-Yahoo.**
+If your `mail_provider.type` is `"uni-graz-ews"`, the script needs to
+reach `webmail.uni-graz.at`, which is only accessible from inside the
+Uni-Graz network or through the Cisco / openconnect-sso VPN. **Yahoo
+SMTP needs no VPN; skip this section if you use Yahoo.**
 
 The script auto-detects whether webmail is reachable and prints a clear
 warning at the start of the run if not (see `utils/vpn.py`). If the VPN
-is down, the final daily-report mail step is skipped automatically so
-you don't wait through a 120-second connect timeout.
+is down, the final daily-report mail is skipped automatically so you
+don't wait through a 120-second connect timeout (see `utils/auto_vpn.py`
+for the optional headless integration).
 
 ### Laptop (Windows / macOS) - Cisco Secure Client
 
-The interactive Uni-Graz setup. Cisco Secure Client (the modern replacement
-for AnyConnect) has a GUI you launch manually:
+The interactive Uni-Graz setup. Cisco Secure Client (the modern
+replacement for AnyConnect) has a GUI you launch manually:
 
 1. Open Cisco Secure Client.
-2. Connect to `vpn.uni-graz.at`.
+2. Connect to `univpn.uni-graz.at` and select the right authgroup
+   (`Bedienstete`, `Studierende`, or `Universitaetsbibliothek`).
 3. Authenticate with your Uni email + password.
-4. Confirm the MFA prompt (TOTP from the Uni-Graz Authenticator).
+4. Confirm the MFA prompt (TOTP from the Uni-Graz Authenticator app).
 5. Wait until "Connected" appears.
 6. Run the script: `uv run python main.py`.
 
 There is no reliable headless CLI for Cisco Secure Client on Windows or
-macOS. If you need unattended runs on those platforms, your options are:
-keep the connection alive in a long-lived session, or switch to the
-Yahoo SMTP backend (no VPN required).
+macOS. For unattended runs on those platforms, either keep the
+connection alive in a long-lived session, or switch to the Yahoo SMTP
+backend (no VPN required).
 
-### Linux server - openconnect (headless)
+### Linux server - openconnect-sso (headless)
 
-For unattended cron on a Proxmox LXC / Debian box, use `openconnect`
-which is fully scriptable.
+Uni-Graz delegates VPN authentication to Keycloak (SAML), which means
+**plain `openconnect` does NOT work** out of the box - it gets login
+form submissions rejected. The supported headless path uses
+[`openconnect-sso`](https://github.com/vlaci/openconnect-sso), a Python
+wrapper that drives a headless Qt-WebEngine browser through the SAML
+flow, extracts the AnyConnect session cookie, then hands off to plain
+`openconnect` for the actual tunnel.
+
+The full setup - apt packages, sudoers rule for `/usr/sbin/openconnect`,
+LXC host-side TUN passthrough, keyring credentials, the
+`~/.config/openconnect-sso/config.toml` DOM selectors for Keycloak,
+`vpn_up.sh` / `vpn_down.sh` wrappers, systemd Pre/Post hooks - is
+documented step by step in **[`docs/SERVER_VPN_SETUP.md`](docs/SERVER_VPN_SETUP.md)**.
+That doc is the canonical reference; this README only summarises.
+
+Two ways to integrate the tunnel with the daily run:
+
+1. **External bash wrappers + systemd** (recommended). `vpn_up.sh` runs
+   as `ExecStartPre` on `termino.service`, `vpn_down.sh` as
+   `ExecStopPost`. See the systemd block in `docs/SERVER_VPN_SETUP.md`.
+
+2. **In-script** (`config.auto_vpn.enabled = true`). `utils/auto_vpn.py`
+   wraps the workflow in a Python context manager that calls the same
+   underlying tools. Useful when you don't have systemd. See
+   `config.example.json` for the `auto_vpn` block and the docstring of
+   `utils/auto_vpn.py` for the threat model.
+
+Either way `openconnect-sso` itself must be installed as a uv tool
+(its `keyring<24` pin conflicts with the script's `keyring>=25`, so it
+can't be a regular project dep):
 
 ```bash
-sudo apt install openconnect oathtool
+uv tool install --with 'setuptools<70' --with 'keyrings.alt' --with 'pycryptodome' openconnect-sso
 ```
-
-You also need your **TOTP base32 seed** (the underlying secret that the
-Uni Authenticator app generates rotating codes from). Get it from the
-Uni-Graz IT portal when you (re-)provision a token - the QR code shown
-during setup is just a wrapper around this base32 string.
-
-Store the credentials in the keyring under the `openconnect-sso`
-namespace - the script's `utils.secrets` module knows this slot, and the
-EWS mail backend reads the same login password from it (one rotation
-point for both VPN and mail):
-
-```bash
-uv run python -m utils.secrets set --email <your-mail@edu.uni-graz.at> --vpn
-```
-
-The wizard prompts for the login password and the TOTP base32 seed. Test:
-
-```bash
-oathtool --totp -b "$(uv run python -m utils.secrets get --vpn-totp-seed)"
-```
-
-Should return the same 6-digit code your Authenticator app shows.
-
-Then write a small `vpn_up.sh` wrapper that pulls the secrets from the
-keyring, generates a fresh TOTP code with `oathtool`, and pipes both into
-`openconnect`. Wire it into systemd as `ExecStartPre=` on the
-`termino.service` so each daily run brings the VPN up before the workflow
-starts and tears it down after.
-
-A full systemd + openconnect example is on the roadmap as Phase B of the
-VPN integration (script will spawn `openconnect` directly from `main.py`
-when configured to do so). Until then, the wrapper-script approach above
-is the documented path.
 
 ---
 
@@ -416,7 +412,7 @@ The script is designed to run unattended on a Proxmox LXC container or any small
    sudo apt install chromium chromium-driver
    ```
 
-2. **VPN must be available** if you use the EWS mail backend. Headless `openconnect` against `vpn.uni-graz.at` works; configuration is left as an exercise. The Yahoo backend has no VPN requirement.
+2. **VPN must be available** if you use the EWS mail backend. Headless `openconnect-sso` against `univpn.uni-graz.at` is the documented path - see [`docs/SERVER_VPN_SETUP.md`](docs/SERVER_VPN_SETUP.md). The Yahoo SMTP backend has no VPN requirement.
 
 A typical systemd timer pair:
 

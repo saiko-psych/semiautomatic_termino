@@ -15,6 +15,7 @@ This is **v2.0** — a full rewrite of the original Yahoo-only single-file scrip
 - [Quick install](#quick-install)
 - [Configuration](#configuration)
 - [Storing secrets](#storing-secrets)
+- [VPN setup (only for EWS)](#vpn-setup-only-for-ews)
 - [Daily run](#daily-run)
 - [Server / cron deployment](#server--cron-deployment)
 - [Email templates](#email-templates)
@@ -61,6 +62,25 @@ Optional, but strongly recommended:
 | **Nextcloud calendar** | Auto-create and auto-share calendar entries per slot. |
 
 Tested on Windows 11 (Python 3.13) and Debian 12 LXC (Python 3.11). macOS should work but is not exercised by the test suite.
+
+### Quick recommendation
+
+If you're at Uni-Graz and don't mind connecting the Cisco VPN before each
+run / via systemd:
+
+- `mail_provider: uni-graz-ews`
+- `sheet_provider: unicloud`
+- `calendar_provider: unicloud-caldav`
+
+If you want zero VPN setup (Yahoo address as the sender, Google Drive
+sheet, no calendar):
+
+- `mail_provider: yahoo-smtp`
+- `sheet_provider: google`
+- `calendar_provider: none`
+
+Mixing is fine - the providers are independent. The `setup.py` wizard
+walks through each choice.
 
 ---
 
@@ -293,6 +313,80 @@ The encrypted-file backends (`keyrings.cryptfile`, `keyrings.alt`
 EncryptedKeyring) ignore the `KEYRING_CRYPTFILE_PASSWORD` env var in
 practice — they always prompt interactively, which kills cron. Use
 PlaintextKeyring on the server.
+
+---
+
+## VPN setup (only for EWS)
+
+If your `mail_provider.type` is `"uni-graz-ews"`, the script needs to reach
+`webmail.uni-graz.at`, which is only accessible from inside the Uni-Graz
+network. From off-campus, bring up the Cisco AnyConnect / Secure Client VPN
+before running. **Yahoo SMTP needs no VPN; skip this section if you use
+Yahoo.**
+
+The script auto-detects whether webmail is reachable and prints a clear
+warning at the start of the run if not (see `utils/vpn.py`). If the VPN
+is down, the final daily-report mail step is skipped automatically so
+you don't wait through a 120-second connect timeout.
+
+### Laptop (Windows / macOS) - Cisco Secure Client
+
+The interactive Uni-Graz setup. Cisco Secure Client (the modern replacement
+for AnyConnect) has a GUI you launch manually:
+
+1. Open Cisco Secure Client.
+2. Connect to `vpn.uni-graz.at`.
+3. Authenticate with your Uni email + password.
+4. Confirm the MFA prompt (TOTP from the Uni-Graz Authenticator).
+5. Wait until "Connected" appears.
+6. Run the script: `uv run python main.py`.
+
+There is no reliable headless CLI for Cisco Secure Client on Windows or
+macOS. If you need unattended runs on those platforms, your options are:
+keep the connection alive in a long-lived session, or switch to the
+Yahoo SMTP backend (no VPN required).
+
+### Linux server - openconnect (headless)
+
+For unattended cron on a Proxmox LXC / Debian box, use `openconnect`
+which is fully scriptable.
+
+```bash
+sudo apt install openconnect oathtool
+```
+
+You also need your **TOTP base32 seed** (the underlying secret that the
+Uni Authenticator app generates rotating codes from). Get it from the
+Uni-Graz IT portal when you (re-)provision a token - the QR code shown
+during setup is just a wrapper around this base32 string.
+
+Store the credentials in the keyring under the `openconnect-sso`
+namespace - the script's `utils.secrets` module knows this slot, and the
+EWS mail backend reads the same login password from it (one rotation
+point for both VPN and mail):
+
+```bash
+uv run python -m utils.secrets set --email <your-mail@edu.uni-graz.at> --vpn
+```
+
+The wizard prompts for the login password and the TOTP base32 seed. Test:
+
+```bash
+oathtool --totp -b "$(uv run python -m utils.secrets get --vpn-totp-seed)"
+```
+
+Should return the same 6-digit code your Authenticator app shows.
+
+Then write a small `vpn_up.sh` wrapper that pulls the secrets from the
+keyring, generates a fresh TOTP code with `oathtool`, and pipes both into
+`openconnect`. Wire it into systemd as `ExecStartPre=` on the
+`termino.service` so each daily run brings the VPN up before the workflow
+starts and tears it down after.
+
+A full systemd + openconnect example is on the roadmap as Phase B of the
+VPN integration (script will spawn `openconnect` directly from `main.py`
+when configured to do so). Until then, the wrapper-script approach above
+is the documented path.
 
 ---
 

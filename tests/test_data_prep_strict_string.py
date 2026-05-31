@@ -29,6 +29,18 @@ class TestDataPrepUnderStrictStringDtype(unittest.TestCase):
         # Flip the strict flag for the duration of the test, then restore.
         self._prev = pd.options.future.infer_string
         pd.options.future.infer_string = True
+
+        # On pandas <2.3, the strict string mode requires pyarrow.
+        # If pyarrow isn't installed (common on Windows / fresh clones
+        # without 'uv sync'), skip rather than crash with ImportError.
+        try:
+            _ = pd.DataFrame({"x": ["probe"]})
+        except ImportError as exc:
+            pd.options.future.infer_string = self._prev
+            self.skipTest(
+                f"strict-string-dtype mode requires pyarrow on this pandas: {exc}"
+            )
+
         # Reload utils.extensions so it picks up the new option *if* it
         # cached anything (it doesn't, but safer).
         if "utils.extensions" in sys.modules:

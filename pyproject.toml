@@ -76,6 +76,7 @@ dependencies = [
 
     # Credentials
     "keyring>=25.0",                                # OS keyring (Win Credential Manager, macOS Keychain)
+    "keyrings.alt>=5.0 ; sys_platform != 'win32' and sys_platform != 'darwin'",       # headless: provides PlaintextKeyring
     "keyrings.cryptfile>=1.3 ; sys_platform != 'win32' and sys_platform != 'darwin'",
     "pycryptodome>=3.20 ; sys_platform != 'win32' and sys_platform != 'darwin'",
 

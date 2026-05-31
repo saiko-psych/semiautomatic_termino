@@ -18,6 +18,29 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 
+import shutil
+from pathlib import Path as _Path
+
+
+def _resolve_chromedriver_path():
+    """
+    Find ChromeDriver in this order of preference:
+    1. CHROMEDRIVER_PATH env var (manual override for special setups)
+    2. System-installed chromedriver (Debian/Ubuntu chromium-driver package
+       puts it at /usr/bin/chromedriver and guarantees a version match
+       with the system Chromium - fixes the latest-stable mismatch problem)
+    3. webdriver-manager fallback (downloads latest stable driver - works
+       on Windows / macOS where no system chromedriver exists)
+    """
+    env_override = os.environ.get("CHROMEDRIVER_PATH")
+    if env_override and _Path(env_override).is_file():
+        return env_override
+    system_driver = shutil.which("chromedriver")
+    if system_driver:
+        return system_driver
+    return ChromeDriverManager().install()
+
+
 
 def termino_antibot_key():
     """
@@ -68,8 +91,14 @@ def termino_antibot_key():
         print(f"Fetching antibot_key try Nr: {nr_try}\n\n")
 
         # Initialize the WebDriver service and start ChromeDriver
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service)
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        service = Service(_resolve_chromedriver_path())
+        driver = webdriver.Chrome(service=service, options=options)
 
         # Open the login page of Termino
         driver.get("https://www.termino.gv.at/meet/de/user")
@@ -669,8 +698,14 @@ def deleting_bookings(kekse, editing_url, to_remove_ids, today) -> int:
     cookies = [{'name': key, 'value': value, 'domain': '.termino.gv.at', 'path': '/'} for key, value in kekse.items()]
 
     # Use WebDriverManager to start the ChromeDriver
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service)
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    service = Service(_resolve_chromedriver_path())
+    driver = webdriver.Chrome(service=service, options=options)
 
     # Open the editing page (ensure that you are already logged in before visiting this URL)
     driver.get(editing_url)
@@ -1012,8 +1047,14 @@ def insert_new_app_in_termino(kekse, editing_url, df_kombiniert):
     cookies = [{'name': key, 'value': value, 'domain': '.termino.gv.at', 'path': '/'} for key, value in kekse.items()]
 
     # Start the Selenium WebDriver
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service)
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1920,1080")
+    service = Service(_resolve_chromedriver_path())
+    driver = webdriver.Chrome(service=service, options=options)
 
     # Open the editing URL
     driver.get(editing_url)

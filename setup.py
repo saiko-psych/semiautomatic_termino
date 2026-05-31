@@ -83,6 +83,15 @@ def collect_user_inputs() -> tuple:
     booking_list = _ask("Termino booking list name")
     study_name = _ask("Study name (Studienname)")
 
+    # Study-detail strings used as template substitutions ($LOCATION, $MAIL,
+    # $BOOKING_URL) in templates/first_email.txt + templates/reminder.txt.
+    study_location = _ask("Study location for mail templates "
+                          "(e.g. 'Glacisstr. 27, 8010 Graz')")
+    contact_mail = _ask("Contact mail shown to participants as 'Bei Rueckfragen'",
+                        default=mail)
+    booking_url = _ask("Termino booking URL "
+                       "(full https://www.termino.gv.at/meet/de/b/... link)")
+
     print()
     provider = _ask_choice(
         "Which mail provider do you want to use?",
@@ -93,19 +102,84 @@ def collect_user_inputs() -> tuple:
         default_idx=0,
     )
 
+    # --- Sheet provider (where the VL spreadsheet lives) ---
     print()
-    google_input = _ask(
-        "Enable Google Sheets integration for supervisor notifications? (yes/no)",
-        default="yes",
-    ).lower()
-    implement_google = 1 if google_input in ("yes", "y", "ja", "j") else 2
-    if implement_google == 1:
+    sheet_provider_type = _ask_choice(
+        "Where is the supervisor (VL) spreadsheet located?",
+        options=[
+            ("unicloud", "Nextcloud WebDAV at cloud.uni-graz.at (recommended)"),
+            ("google",   "Legacy: Google Spreadsheet (download via published URL)"),
+            ("none",     "Skip sheet integration entirely"),
+        ],
+        default_idx=0,
+    )
+
+    sheet_provider_config = None
+    google_url = ""
+    if sheet_provider_type == "unicloud":
+        sheet_user = _ask(
+            "uniCLOUD username (e.g. 'vorname.nachname_edu' - see "
+            "cloud.uni-graz.at -> Profile)",
+            default=mail.split("@")[0] + "_edu",
+        )
+        sheet_xlsx_path = _ask(
+            "Path to xlsx file inside uniCLOUD "
+            "(e.g. '/Termino/versuchsleiter.xlsx')",
+        )
+        sheet_main = _ask("Main sheet tab name", default="Zeittabelle")
+        sheet_info = _ask("Info sheet tab name", default="information")
+        sheet_provider_config = {
+            "type": "unicloud",
+            "username": sheet_user,
+            "xlsx_path": sheet_xlsx_path,
+            "main_sheet": sheet_main,
+            "info_sheet": sheet_info,
+        }
+    elif sheet_provider_type == "google":
         google_url = _ask("Google Spreadsheet URL")
-        information = _ask("Spreadsheet sheet name with supervisor info",
-                           default="information")
-    else:
-        google_url = ""
-        information = ""
+        sheet_provider_config = {"type": "google"}
+
+    # --- Calendar provider (where to create VL slot entries) ---
+    print()
+    calendar_provider_type = _ask_choice(
+        "Where should the script create calendar entries for VL appointments?",
+        options=[
+            ("none",            "Skip calendar - no entries created"),
+            ("unicloud-caldav", "Nextcloud calendar at cloud.uni-graz.at"),
+            ("uni-graz-ews",    "Outlook calendar via EWS (requires VPN)"),
+        ],
+        default_idx=0,
+    )
+
+    calendar_provider_config = {"type": calendar_provider_type}
+    if calendar_provider_type == "unicloud-caldav":
+        cal_user = _ask(
+            "uniCLOUD username for calendar",
+            default=(sheet_provider_config.get("username", "")
+                     if sheet_provider_config else ""),
+        )
+        cal_name = _ask(
+            "Calendar name (must exist or be created in cloud.uni-graz.at)",
+            default="Termino",
+        )
+        calendar_provider_config["username"] = cal_user
+        calendar_provider_config["calendar_name"] = cal_name
+    elif calendar_provider_type == "uni-graz-ews":
+        cal_user = _ask(
+            "Uni-Graz mail address for calendar",
+            default=mail,
+        )
+        cal_name = _ask("Calendar name", default="Termino")
+        calendar_provider_config["username"] = cal_user
+        calendar_provider_config["calendar_name"] = cal_name
+
+    # implement_google is the legacy flag for "enable sheet sync";
+    # any sheet_provider != "none" means we want sync. Kept for
+    # backward compatibility - a later patch will rename to
+    # implement_sheet_sync.
+    implement_google = 1 if sheet_provider_type != "none" else 2
+    information = (sheet_provider_config.get("info_sheet", "information")
+                   if sheet_provider_config else "information")
 
     env_data = {
         "username_termino": username_termino,
@@ -117,6 +191,9 @@ def collect_user_inputs() -> tuple:
     config_data = {
         "booking_list": booking_list,
         "study_name": study_name,
+        "study_location": study_location,
+        "contact_mail": contact_mail,
+        "booking_url": booking_url,
         "actual_list_printing": 2,
         "fist_mail_recieved_printing": 2,
         "to_send_first_mail": 2,
@@ -127,6 +204,10 @@ def collect_user_inputs() -> tuple:
             "username": mail,
         },
     }
+    if sheet_provider_config:
+        config_data["sheet_provider"] = sheet_provider_config
+    config_data["calendar_provider"] = calendar_provider_config
+
     return env_data, config_data, provider
 
 

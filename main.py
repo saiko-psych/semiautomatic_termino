@@ -685,8 +685,20 @@ def main() -> None:
             print(report.to_console_summary())
             # Phase A.5: skip the 120s EWS connect-timeout when VPN clearly down.
             # The user already saw the VPN warning at the top of the run.
+            #
+            # Trust auto_vpn: if it was enabled in config, the with-statement
+            # above brought the tunnel up and the workflow already used EWS
+            # successfully (VL-mails etc.). The TCP probe to webmail can
+            # race against DNS-priority on multi-adapter Windows, so we
+            # only fall through to the probe when auto_vpn wasn't asked to
+            # manage the VPN this run.
             mail_type = provider_cfg.get("type", "")
-            if mail_type == "uni-graz-ews" and not is_vpn_connected():
+            auto_vpn_active = bool(
+                (config_data.get("auto_vpn") or {}).get("enabled")
+            )
+            if (mail_type == "uni-graz-ews"
+                    and not auto_vpn_active
+                    and not is_vpn_connected()):
                 print(f"  ! Skipped daily-report mail "
                       f"({mail_type} unreachable - VPN warning shown at start)")
             else:

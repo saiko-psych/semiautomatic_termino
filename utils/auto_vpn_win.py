@@ -362,9 +362,20 @@ def _start_tunnel(host: str, cookie: str, fingerprint: str,
         creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
     )
 
-    # Wait for the "Connected as ..." line that tells us routing is up.
-    # If we never see it within 30s, give up.
+    # Wait for vpnc-script-win.js to finish configuring DNS + routes.
+    # The key marker is "Legacy IP route configuration done." - that's
+    # printed AFTER openconnect has set up Wintun, configured the DNS
+    # servers, and added the split-include routes. If we return earlier
+    # (e.g. on the "Configured as ..." line) the workflow can race
+    # against DNS being set up and the very first DNS lookup fails with
+    # "Name or service not known", which is what happened during the
+    # 2026-06-01 21:00 live test.
+    #
+    # If we never see the marker within 30s, give up. We also still
+    # detect "Configured as" so we can warn that the route config is
+    # taking longer than expected.
     deadline = time.time() + 30
+    saw_configured = False
     while time.time() < deadline:
         if proc.poll() is not None:
             # Process exited - read whatever output it produced.
@@ -383,13 +394,17 @@ def _start_tunnel(host: str, cookie: str, fingerprint: str,
         except Exception:
             line = ""
         if line:
-            # Echo to our stderr so the user sees progress.
             print(f"[openconnect] {line.rstrip()}", file=sys.stderr)
             if "Configured as" in line or "Connected as" in line:
+                saw_configured = True
+            if "route configuration done" in line:
+                # All DNS + routes set up. Now we need to keep draining
+                # stdout in the background so the openconnect-process
+                # doesn't block on a full pipe (DPD pings + keepalive
+                # write to stdout continuously).
+                _spawn_stdout_drainer(proc)
                 return proc
             if "Access denied" in line:
-                # Wintun-adapter creation failed despite our admin
-                # check. Surface clearly + terminate the partial proc.
                 _terminate_proc(proc)
                 raise VPNError(
                     "openconnect.exe got 'Access denied' creating the "
@@ -399,9 +414,42 @@ def _start_tunnel(host: str, cookie: str, fingerprint: str,
         else:
             time.sleep(0.2)
 
-    # Timeout - kill the process and report.
+    # Timeout. If we at least saw "Configured as" the tunnel is half-up.
     _terminate_proc(proc)
-    raise VPNError("openconnect.exe did not report 'Configured as ...' within 30s")
+    if saw_configured:
+        raise VPNError(
+            "openconnect.exe set up the tunnel but vpnc-script-win.js "
+            "never finished route configuration within 30s. DNS lookups "
+            "would race against the workflow start - aborting."
+        )
+    raise VPNError(
+        "openconnect.exe did not report 'Configured as ...' within 30s"
+    )
+
+
+def _spawn_stdout_drainer(proc: subprocess.Popen) -> None:
+    """Drain openconnect.exe's stdout in a background daemon thread.
+
+    openconnect prints DPD/keepalive activity periodically. If we leave
+    stdout=PIPE unread, the OS pipe buffer fills (~64KB on Windows) and
+    openconnect blocks on its next write, freezing the tunnel.
+    """
+    import threading
+
+    def _drain() -> None:
+        try:
+            if not proc.stdout:
+                return
+            for line in iter(proc.stdout.readline, ""):
+                if not line:
+                    break
+                # Quiet: only echo non-empty lines, prefixed.
+                print(f"[openconnect] {line.rstrip()}", file=sys.stderr)
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_drain, daemon=True, name="openconnect-drain")
+    t.start()
 
 
 def _terminate_proc(proc: subprocess.Popen) -> None:
@@ -519,7 +567,6 @@ def _load_config(path: str = "config.json") -> dict:
 
 def _cli_up(args) -> int:
     cfg = _load_config(args.config)
-    # If the cli forced auto_vpn we don't need it in config.
     cfg.setdefault("auto_vpn", {})
     cfg["auto_vpn"]["enabled"] = True
     print("[auto_vpn_win] CLI mode: bringing tunnel up", file=sys.stderr)
@@ -551,7 +598,6 @@ def _cli_down(args) -> int:
     print("[auto_vpn_win] CLI mode: tearing down any running tunnel",
           file=sys.stderr)
     _stop_tunnel_by_proc(None)
-    # Best-effort restart of the services that we typically stop.
     _restart_services(["csc_vpnagent", "MullvadVPN"])
     return 0
 

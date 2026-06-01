@@ -8,6 +8,7 @@ platform safety, and the no-op-when-disabled contract.
 """
 
 import sys
+import subprocess
 import unittest
 from unittest import mock
 
@@ -172,6 +173,148 @@ class TestKeyringPreCheck(unittest.TestCase):
                 with auto_vpn_session(cfg):
                     self.fail("body should never run without TOTP seed")
             self.assertIn("No TOTP base32 seed", str(cm.exception))
+
+
+# --- subprocess pipe-detach + cleanup-on-setup-failure --------------------
+# Regression tests for the bug discovered during CT-131 side-by-side test
+# on 2026-06-01 (see docs/AUTO-VPN-TEST-REPORT.md).
+
+class TestStartTunnelPipeDetach(unittest.TestCase):
+    """_start_tunnel must spawn openconnect detached from Python's pipes.
+
+    openconnect --background daemonizes, the daemon-child inherits any
+    pipes opened by the parent subprocess.run, and capture_output=True
+    used to deadlock the parent waiting for EOF that would never come.
+    The fix: stdin/stdout/stderr=DEVNULL + start_new_session=True.
+    """
+
+    def test_uses_devnull_and_new_session(self):
+        from utils.auto_vpn import _start_tunnel
+
+        with mock.patch("utils.auto_vpn._resolve_tool", return_value="/usr/sbin/openconnect"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.Path") as PathMock, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            # subprocess.run reports immediate success.
+            run.return_value = mock.Mock(returncode=0)
+            # PID-file appears immediately, /proc/<pid> exists.
+            pid_path = mock.Mock()
+            pid_path.exists.return_value = True
+            pid_path.read_text.return_value = "12345"
+            proc_path = mock.Mock()
+            proc_path.is_dir.return_value = True
+            PathMock.side_effect = lambda p: pid_path if "tmp" in str(p) or "oc" in str(p) else proc_path
+
+            _start_tunnel("host", "cookie", "fp", {"pid_file": "/tmp/oc-test.pid"})
+
+            # The FIRST subprocess.run call must be the openconnect spawn.
+            self.assertGreaterEqual(run.call_count, 1)
+            first = run.call_args_list[0]
+            kwargs = first.kwargs
+            # No pipes - daemon-child must not inherit anything.
+            self.assertEqual(kwargs.get("stdin"), subprocess.DEVNULL)
+            self.assertEqual(kwargs.get("stdout"), subprocess.DEVNULL)
+            self.assertEqual(kwargs.get("stderr"), subprocess.DEVNULL)
+            # New session so openconnect is fully detached.
+            self.assertTrue(kwargs.get("start_new_session"))
+            # capture_output must NOT be set (it would re-open pipes).
+            self.assertFalse(kwargs.get("capture_output"))
+
+    def test_raises_when_pid_file_never_appears(self):
+        """If openconnect spawn returns but never writes a PID-file
+        (cookie expired, sudoers wrong), we surface a clear error."""
+        from utils.auto_vpn import _start_tunnel
+
+        with mock.patch("utils.auto_vpn._resolve_tool", return_value="/usr/sbin/openconnect"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.Path") as PathMock, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            run.return_value = mock.Mock(returncode=0)
+            never_exists = mock.Mock()
+            never_exists.exists.return_value = False
+            PathMock.return_value = never_exists
+
+            with self.assertRaises(VPNError) as cm:
+                _start_tunnel("host", "cookie", "fp", {"pid_file": "/tmp/oc-test.pid"})
+            self.assertIn("did not register a running PID", str(cm.exception))
+
+
+class TestCleanupOnSetupFailure(unittest.TestCase):
+    """If _start_tunnel raises mid-flight, a daemon may already be running.
+    auto_vpn_session must call _stop_tunnel before re-raising, so the
+    zombie does not fool the next vpn_up.sh pgrep check.
+    """
+
+    def test_stop_tunnel_called_when_start_tunnel_raises(self):
+        cfg = {"auto_vpn": {"enabled": True,
+                            "user_email": "x@example.org"}}
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("utils.auto_vpn.is_vpn_up", return_value=False), \
+             mock.patch("utils.auto_vpn._check_keyring_credentials"), \
+             mock.patch("utils.auto_vpn._authenticate",
+                        return_value=("host", "cookie", "fp")), \
+             mock.patch("utils.auto_vpn._start_tunnel",
+                        side_effect=VPNError("simulated tunnel failure")), \
+             mock.patch("utils.auto_vpn._stop_tunnel") as stop:
+
+            with self.assertRaises(VPNError):
+                with auto_vpn_session(cfg):
+                    self.fail("body must never run when setup failed")
+
+            stop.assert_called_once()
+            args = stop.call_args.args
+            self.assertEqual(args[0], "univpn")
+
+
+
+class TestStopTunnelSudoersCompat(unittest.TestCase):
+    """_stop_tunnel must use commands that match the deployed sudoers
+    rule exactly. Regression test for Befund 4 (CT-131, 2026-06-01):
+    `sudo pkill -f <pattern>` is rejected by sudoers because the rule
+    is `sudo /usr/bin/pkill openconnect` (no -f). The fix uses pgrep
+    to enumerate PIDs and `sudo /bin/kill <pid>` per PID, with
+    `sudo /usr/bin/pkill openconnect` as failsafe.
+    """
+
+    def test_kills_each_pid_via_kill_not_pkill_dash_f(self):
+        from utils.auto_vpn import _stop_tunnel
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout="12345\n67890\n"),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=1),
+            ]
+            _stop_tunnel("univpn")
+
+            invocations = [call.args[0] for call in run.call_args_list]
+            self.assertIn(["sudo", "-n", "/bin/kill", "12345"], invocations)
+            self.assertIn(["sudo", "-n", "/bin/kill", "67890"], invocations)
+            for inv in invocations:
+                joined = " ".join(inv)
+                self.assertNotIn("pkill -f", joined,
+                    "pkill -f is rejected by sudoers and must not be used")
+
+    def test_failsafe_pkill_uses_exact_sudoers_form(self):
+        from utils.auto_vpn import _stop_tunnel
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout="42\n"),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+            ]
+            _stop_tunnel("univpn")
+
+            invocations = [call.args[0] for call in run.call_args_list]
+            self.assertIn(
+                ["sudo", "-n", "/usr/bin/pkill", "openconnect"],
+                invocations,
+            )
 
 
 if __name__ == "__main__":

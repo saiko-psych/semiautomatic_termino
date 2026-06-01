@@ -42,7 +42,7 @@ from utils.calendar_sinks import (
 from utils.extensions import download_g_s, google_dp, data_prep, data_prep_2
 from utils.run_report import RunReport
 from utils.vpn import warn_if_not_connected, is_vpn_connected
-from utils.auto_vpn import auto_vpn_session
+from utils.vpn_provider import make_vpn_session
 
 
 def _resolve_mail_provider(config_data: dict, env_data: dict) -> dict:
@@ -637,13 +637,16 @@ def main() -> None:
     print(f"Calendar provider: {cal_cfg.get('type')} "
           f"as {cal_cfg.get('username', '(no username)')}")
 
-    # auto_vpn (Phase B): when config_data['auto_vpn']['enabled'] is True
-    # AND we're on Linux, this opens an openconnect-sso-driven tunnel
-    # before mail / calendar / Termino-Selenium touch the network, and
-    # tears it down on exit. No-op when disabled (default) or on
-    # Windows/macOS - see utils/auto_vpn.py. Raises VPNError on bad
-    # config; we let that propagate so the failure message is loud.
-    with auto_vpn_session(config_data), \
+    # auto_vpn (cross-platform factory): when config_data['auto_vpn']['enabled']
+    # is True, this opens an openconnect-driven tunnel before mail /
+    # calendar / Termino-Selenium touch the network, and tears it down on
+    # exit. The factory picks the right backend per OS:
+    #   Linux   -> utils.auto_vpn.auto_vpn_session (openconnect-sso + xvfb-run)
+    #   Windows -> utils.auto_vpn_win.auto_vpn_session_win (openconnect.exe)
+    #   macOS   -> no-op (use Cisco Secure Client manually for now)
+    # No-op when disabled (default). Raises VPNError on bad config;
+    # we let that propagate so the failure message is loud.
+    with make_vpn_session(config_data), \
          make_sender(provider_cfg) as sender, \
          make_calendar_sink(config_data) as calendar_sink:
         workflow_crashed = False
@@ -682,8 +685,20 @@ def main() -> None:
             print(report.to_console_summary())
             # Phase A.5: skip the 120s EWS connect-timeout when VPN clearly down.
             # The user already saw the VPN warning at the top of the run.
+            #
+            # Trust auto_vpn: if it was enabled in config, the with-statement
+            # above brought the tunnel up and the workflow already used EWS
+            # successfully (VL-mails etc.). The TCP probe to webmail can
+            # race against DNS-priority on multi-adapter Windows, so we
+            # only fall through to the probe when auto_vpn wasn't asked to
+            # manage the VPN this run.
             mail_type = provider_cfg.get("type", "")
-            if mail_type == "uni-graz-ews" and not is_vpn_connected():
+            auto_vpn_active = bool(
+                (config_data.get("auto_vpn") or {}).get("enabled")
+            )
+            if (mail_type == "uni-graz-ews"
+                    and not auto_vpn_active
+                    and not is_vpn_connected()):
                 print(f"  ! Skipped daily-report mail "
                       f"({mail_type} unreachable - VPN warning shown at start)")
             else:

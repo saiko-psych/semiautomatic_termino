@@ -140,6 +140,10 @@ Wenn du selber `git`-Operationen aus der Sandbox versuchst, **werden sie nicht z
 ## Offene User-Wuensche (Backlog)
 
 - **Config-UI**: User will config.json-Aenderungen einfach machen koennen, idealerweise per GUI. Provider-Switches (mail/sheet/calendar), Keyring-Secrets, Pfade. Erste Stufe: interaktives PowerShell-Skript `.\config.ps1`. Spaetere Stufe: kleines Tkinter-Fenster oder lokale HTML-Page. Bei Aenderungen an config.json / utils/secrets.py daran denken dass dort spaeter ein UI ansetzen wird.
+- **Read the Docs**: User-Wunsch (2026-06-01) das Projekt auf readthedocs.io zu hosten. Vermutlich mkdocs-material oder Sphinx, mit den existing .md-Files (README, SERVER_VPN_SETUP, WINDOWS_SETUP wenn da, etc.) als Quelle. Auch ein `.readthedocs.yaml` braucht's. Nicht dringend, aber waere schoen fuer Distribution.
+- **docs/WINDOWS_SETUP.md**: User-facing Setup-Guide fuer Windows-Auto-VPN-Integration (Voraussetzung fuer 5-10 Non-IT-User-Distribution). Mit Screenshots: openconnect-gui installieren, uv installieren, openconnect-sso via uv tool, config.toml setzen, Keyring fuellen via setup-windows.ps1.
+- **tools/setup-windows.ps1**: interaktiver Bootstrapper fuer obigen Setup. Macht alle Pfade automatisch, validiert TOTP-Seed mit Vergleich gegen Authenticator-App, legt Desktop-Verknuepfung mit Admin-Flag an.
+- **macOS auto_vpn**: utils/auto_vpn_mac.py - aktuell ist macOS no-op in utils/vpn_provider.py. Cisco Secure Client auf macOS hat aehnliche SAML-Limits wie auf Windows. openconnect-sso laeuft prinzipiell auch auf macOS (homebrew openconnect + uv tool openconnect-sso), nur ohne der Wintun/sudo-Spezialitaeten. Wird Pfad B sein wenn jemand das brauchen sollte.
 
 ## Wenn etwas crasht
 

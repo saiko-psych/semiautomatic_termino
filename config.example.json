@@ -31,14 +31,23 @@
         "_comment_share": "Optional: add 'share_with': ['user1', 'user2'] to auto-share the calendar with VLs."
     },
     "auto_vpn": {
-        "_comment_enabled": "Linux server only. If true, the script auto-spawns openconnect-sso to authenticate (SAML/Keycloak) and openconnect to bring up the VPN tunnel before the daily workflow, tearing it down after. Requires the OS-level setup from docs/SERVER_VPN_SETUP.md (sudoers, xvfb, openconnect-sso, ...). On Windows/macOS leave this disabled and start Cisco Secure Client manually.",
+        "_comment_enabled": "When true, the script auto-spawns openconnect-sso to authenticate (SAML/Keycloak) and openconnect to bring up the VPN tunnel before the daily workflow, tearing it down after. The right backend is picked per OS by utils.vpn_provider. Linux: needs the OS-level setup from docs/SERVER_VPN_SETUP.md (sudoers, xvfb, openconnect-sso). Windows: needs Administrator PowerShell + openconnect-gui + openconnect-sso (uv tool) + DOM-selectors config.toml; see docs/WINDOWS_SETUP.md. macOS: no-op for now, use Cisco Secure Client manually.",
         "enabled": false,
         "user_email": "your-account@edu.uni-graz.at",
         "server": "univpn.uni-graz.at",
-        "use_xvfb": true,
+        "authgroup": "Bedienstete",
         "down_on_exit": true,
+
+        "_comment_linux": "Linux-only fields:",
+        "use_xvfb": true,
         "openconnect_path": "/usr/sbin/openconnect",
         "openconnect_sso_path": "/home/termino/.local/bin/openconnect-sso",
-        "pid_file": "/tmp/oc-termino.pid"
+        "pid_file": "/tmp/oc-termino.pid",
+
+        "_comment_windows": "Windows-only fields. Verified 2026-06-01 on openconnect.exe v9.12 (openconnect-gui-1.6.2-win64). The script needs Administrator PowerShell to create the Wintun adapter. stop_cisco_during_run and stop_mullvad_during_run temporarily stop those services to avoid routing conflicts; they are restarted on exit.",
+        "openconnect_path_win": "C:/Program Files/OpenConnect-GUI/openconnect.exe",
+        "openconnect_sso_path_win": "C:/Users/<you>/.local/bin/openconnect-sso.exe",
+        "stop_cisco_during_run": true,
+        "stop_mullvad_during_run": true
     }
 }

@@ -158,17 +158,24 @@ def is_vpn_up(server_hint: str = "univpn") -> bool:
         # process name regardless of which gateway it connects to,
         # so server_hint is unused on Windows (it's there to keep the
         # same signature as utils.auto_vpn.is_vpn_up).
+        #
+        # encoding="utf-8" + errors="replace" because Windows default
+        # codepage is cp1252 and tasklist can emit bytes outside it,
+        # which would otherwise crash subprocess._readerthread with
+        # UnicodeDecodeError and leave result.stdout=None.
         result = subprocess.run(
             ["tasklist", "/FI", "IMAGENAME eq openconnect.exe", "/NH"],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
-        # tasklist prints "INFO: No tasks..." when nothing matches, and
-        # the process name otherwise.
-        return "openconnect.exe" in result.stdout
+        # Defensive None-check + tasklist prints "INFO: No tasks..."
+        # when nothing matches, and the process name otherwise.
+        return bool(result.stdout) and "openconnect.exe" in result.stdout
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
 
@@ -184,11 +191,14 @@ def _service_status(name: str) -> Optional[str]:
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=5,
         )
-        if "RUNNING" in result.stdout:
+        out = result.stdout or ""
+        if "RUNNING" in out:
             return "RUNNING"
-        if "STOPPED" in result.stdout:
+        if "STOPPED" in out:
             return "STOPPED"
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -285,19 +295,23 @@ def _authenticate(cfg: dict) -> Tuple[str, str, str]:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=180,
         )
     except subprocess.TimeoutExpired:
         raise VPNError("openconnect-sso authentication timed out after 180s")
 
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
     if result.returncode != 0:
         raise VPNError(
             f"openconnect-sso failed (exit {result.returncode}). "
-            f"stderr tail:\n{result.stderr[-500:].strip()}"
+            f"stderr tail:\n{stderr[-500:].strip()}"
         )
 
     host = cookie = fingerprint = None
-    for line in result.stdout.splitlines():
+    for line in stdout.splitlines():
         if line.startswith("HOST="):
             host = line.split("=", 1)[1].strip()
         elif line.startswith("COOKIE="):
@@ -308,7 +322,7 @@ def _authenticate(cfg: dict) -> Tuple[str, str, str]:
     if not all([host, cookie, fingerprint]):
         raise VPNError(
             "openconnect-sso did not return HOST/COOKIE/FINGERPRINT. "
-            f"First 200 chars of stdout: {result.stdout[:200]!r}"
+            f"First 200 chars of stdout: {stdout[:200]!r}"
         )
     return host, cookie, fingerprint
 
@@ -341,6 +355,8 @@ def _start_tunnel(host: str, cookie: str, fingerprint: str,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         # New process group so Ctrl-C in our process doesn't kill the
         # tunnel prematurely - we control teardown via terminate().
         creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),

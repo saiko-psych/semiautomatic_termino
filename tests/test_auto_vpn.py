@@ -140,5 +140,39 @@ class TestEnabledLinuxFlow(unittest.TestCase):
                 self.assertNotIn("sudo", joined)
 
 
+class TestKeyringPreCheck(unittest.TestCase):
+    """The keyring is probed before openconnect-sso is spawned."""
+
+    def test_raises_when_login_pw_missing(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("subprocess.run") as run, \
+             mock.patch("utils.secrets.get_uni_login_password",
+                        return_value=None), \
+             mock.patch("utils.secrets.get_uni_totp_secret",
+                        return_value="seed"):
+            run.return_value = mock.Mock(returncode=1)  # is_vpn_up -> False
+            cfg = {"auto_vpn": {"enabled": True,
+                                "user_email": "x@example.org"}}
+            with self.assertRaises(VPNError) as cm:
+                with auto_vpn_session(cfg):
+                    self.fail("body should never run without keyring pw")
+            self.assertIn("No UGO login password in keyring", str(cm.exception))
+
+    def test_raises_when_totp_seed_missing(self):
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("subprocess.run") as run, \
+             mock.patch("utils.secrets.get_uni_login_password",
+                        return_value="some-pw"), \
+             mock.patch("utils.secrets.get_uni_totp_secret",
+                        return_value=None):
+            run.return_value = mock.Mock(returncode=1)
+            cfg = {"auto_vpn": {"enabled": True,
+                                "user_email": "x@example.org"}}
+            with self.assertRaises(VPNError) as cm:
+                with auto_vpn_session(cfg):
+                    self.fail("body should never run without TOTP seed")
+            self.assertIn("No TOTP base32 seed", str(cm.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

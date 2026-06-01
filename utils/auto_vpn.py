@@ -86,6 +86,32 @@ def _check_linux(operation: str) -> None:
         )
 
 
+def _check_keyring_credentials(cfg: dict) -> None:
+    """Verify the keyring has VPN login PW + TOTP seed BEFORE we spawn
+    openconnect-sso. Otherwise the user gets a cryptic browser-interaction
+    failure instead of a clear 'run set --vpn first' message.
+
+    Late import of utils.secrets so this module stays importable in test
+    contexts where the keyring backend may not be installed.
+    """
+    from utils.secrets import get_uni_login_password, get_uni_totp_secret
+    email = cfg["user_email"]
+    if not get_uni_login_password(email):
+        raise VPNError(
+            f"No UGO login password in keyring for {email!r} (under the "
+            "openconnect-sso namespace). Populate it first:\n"
+            f"  python -m utils.secrets set --email {email} --vpn\n"
+            "See README.md - Storing secrets."
+        )
+    if not get_uni_totp_secret(email):
+        raise VPNError(
+            f"No TOTP base32 seed in keyring for {email!r}. The same "
+            "command sets both:\n"
+            f"  python -m utils.secrets set --email {email} --vpn\n"
+            "It prompts for the login PW and the TOTP seed in turn."
+        )
+
+
 def _resolve_tool(name: str, override_path: str = "") -> str:
     """Return the path to a CLI tool, or raise VPNError with install hint."""
     if override_path:
@@ -287,6 +313,9 @@ def auto_vpn_session(config_data: dict):
     was_already_up = is_vpn_up(server_hint)
 
     if not was_already_up:
+        # Pre-check keyring BEFORE we burn 30+ seconds spawning Qt-WebEngine
+        # only to fail with a confusing browser error.
+        _check_keyring_credentials(cfg)
         host, cookie, fingerprint = _authenticate(cfg)
         _start_tunnel(host, cookie, fingerprint, cfg)
         # Sensitive: drop the cookie reference from this frame. The

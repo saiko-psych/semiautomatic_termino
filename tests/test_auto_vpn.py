@@ -266,5 +266,56 @@ class TestCleanupOnSetupFailure(unittest.TestCase):
             self.assertEqual(args[0], "univpn")
 
 
+
+class TestStopTunnelSudoersCompat(unittest.TestCase):
+    """_stop_tunnel must use commands that match the deployed sudoers
+    rule exactly. Regression test for Befund 4 (CT-131, 2026-06-01):
+    `sudo pkill -f <pattern>` is rejected by sudoers because the rule
+    is `sudo /usr/bin/pkill openconnect` (no -f). The fix uses pgrep
+    to enumerate PIDs and `sudo /bin/kill <pid>` per PID, with
+    `sudo /usr/bin/pkill openconnect` as failsafe.
+    """
+
+    def test_kills_each_pid_via_kill_not_pkill_dash_f(self):
+        from utils.auto_vpn import _stop_tunnel
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout="12345\n67890\n"),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=1),
+            ]
+            _stop_tunnel("univpn")
+
+            invocations = [call.args[0] for call in run.call_args_list]
+            self.assertIn(["sudo", "-n", "/bin/kill", "12345"], invocations)
+            self.assertIn(["sudo", "-n", "/bin/kill", "67890"], invocations)
+            for inv in invocations:
+                joined = " ".join(inv)
+                self.assertNotIn("pkill -f", joined,
+                    "pkill -f is rejected by sudoers and must not be used")
+
+    def test_failsafe_pkill_uses_exact_sudoers_form(self):
+        from utils.auto_vpn import _stop_tunnel
+        with mock.patch.object(sys, "platform", "linux"), \
+             mock.patch("utils.auto_vpn.subprocess.run") as run, \
+             mock.patch("utils.auto_vpn.time.sleep"):
+            run.side_effect = [
+                mock.Mock(returncode=0, stdout="42\n"),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+                mock.Mock(returncode=0),
+            ]
+            _stop_tunnel("univpn")
+
+            invocations = [call.args[0] for call in run.call_args_list]
+            self.assertIn(
+                ["sudo", "-n", "/usr/bin/pkill", "openconnect"],
+                invocations,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

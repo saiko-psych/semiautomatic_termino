@@ -306,89 +306,19 @@ def _start_tunnel(host: str, cookie: str, fingerprint: str, cfg: dict) -> None:
 
 
 def _stop_tunnel(server_hint: str = "univpn") -> None:
-    """Kill openconnect processes for the configured VPN server.
-
-    Mirrors the production vpn_down.sh strategy because the deployed
-    sudoers rule for the termino user is very tight:
-
-        NOPASSWD: /usr/sbin/openconnect,
-                  /usr/bin/killall openconnect,
-                  /usr/bin/pkill openconnect,
-                  /bin/kill
-
-    sudo requires EXACT argument matches, so `sudo pkill -f <pattern>`
-    is rejected by sudoers even though `sudo pkill openconnect` is
-    allowed. The old implementation used the -f form and failed silently,
-    leaving the tunnel running. See docs/AUTO-VPN-TEST-REPORT.md,
-    Befund 4 (discovered during the 2026-06-01 CT-131 verify of the
-    pipe-detach fix).
-
-    Strategy now:
-    1. pgrep (unprivileged) for openconnect PIDs matching the server hint
-    2. `sudo /bin/kill <pid>` per PID (sudoers allows /bin/kill any args)
-    3. Failsafe: `sudo /usr/bin/pkill openconnect` (exact sudoers match)
-    """
+    """Kill openconnect processes for the configured server. Best effort."""
     if sys.platform != "linux":
         return
-
-    pattern = f"openconnect.*{server_hint}"
-
-    # Step 1: find target PIDs. pgrep is unprivileged.
-    pids = []
     try:
-        result = subprocess.run(
-            ["pgrep", "-f", pattern],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            text=True,
-            timeout=5,
+        subprocess.run(
+            ["sudo", "-n", "/usr/bin/pkill",
+             "-f", f"openconnect.*{server_hint}"],
+            capture_output=True,
+            timeout=10,
         )
-        pids = [p.strip() for p in result.stdout.splitlines() if p.strip()]
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        # pgrep missing or hung - fall through to failsafe.
-        pass
-
-    # Step 2: kill per PID. sudoers allows /bin/kill with any args.
-    for pid in pids:
-        try:
-            subprocess.run(
-                ["sudo", "-n", "/bin/kill", pid],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-            )
-        except subprocess.TimeoutExpired:
-            print(f"[auto_vpn] WARN: sudo kill {pid} timed out",
-                  file=sys.stderr)
-
-    # Brief settle window so kernel can release tun0 + write pidfile delete.
-    time.sleep(1)
-
-    # Step 3: failsafe if anything survived the per-PID round. Uses the
-    # exact `sudo /usr/bin/pkill openconnect` form the sudoers rule
-    # allows; intentionally has no -f or pattern so the match works.
-    try:
-        still = subprocess.run(
-            ["pgrep", "-f", pattern],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=5,
-        )
-        if still.returncode == 0:
-            print("[auto_vpn] WARN: stragglers detected - using failsafe pkill",
-                  file=sys.stderr)
-            subprocess.run(
-                ["sudo", "-n", "/usr/bin/pkill", "openconnect"],
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=5,
-            )
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
+    except subprocess.TimeoutExpired:
+        # We tried, log and move on. The tunnel will time out eventually.
+        print("[auto_vpn] WARN: pkill openconnect timed out", file=sys.stderr)
 
 
 # --- public context manager ---------------------------------------------

@@ -294,17 +294,12 @@ def notify_supervisors_task(
     Calendar upsert errors never break the mail flow - they only log a
     warning.
     """
-    print(EXTENSIONS)
-    time.sleep(0.5)
-
     download_g_s(env_data, config_data)
     name_vl, email_vl, date_vl, time_vl = google_dp(tomorrow)
 
-    print(f"Tomorrow time: {tomorrow_time}")
-    print(f"Supervisor names: {name_vl}")
-    print(f"Supervisor emails: {email_vl}")
-    print(f"Supervisor dates: {date_vl}")
-    print(f"Supervisor times: {time_vl}")
+    # The previous code printed an ASCII-art banner + 5 supervisor-list
+    # dumps here. That information is already in the RunReport HTML mail
+    # and the [STATUS] markers. Dropped for a less noisy console.
 
     vl_mail(
         sender,
@@ -585,6 +580,15 @@ def main() -> None:
         4. Build the calendar sink from config_data['calendar_provider']
         5. Run the daily workflow inside both context managers
     """
+    # Reconfigure stdout/stderr for UTF-8 so the unicode banner + any
+    # umlauts in user data survive output redirection on Windows (where
+    # cp1252 is the default codec when stdout is captured by tools like
+    # cmd /c, Measure-Command, tee, etc.).
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError):
+        pass  # Old Python or non-text streams - keep going, banner may garble
     # Display banner
     print(TERMINO_SCRIPT_ASCI)
     time.sleep(0.5)

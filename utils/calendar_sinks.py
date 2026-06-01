@@ -587,9 +587,9 @@ def push_slots_to_calendar(
         )
         try:
             calendar_sink.upsert_event(ev)
-            print(
-                f"  -> Kalender-Event gesetzt fuer {slot_time} "
-                f"({len(vl['vl_emails'])} VL, {len(participants)} TN)"
+            log.info(
+                "Kalender-Event gesetzt fuer %s (%d VL, %d TN)",
+                slot_time, len(vl["vl_emails"]), len(participants),
             )
         except Exception as e:
             log.warning(

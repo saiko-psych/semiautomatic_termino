@@ -1,5 +1,7 @@
 # semiautomatic_termino
 
+[![tests](https://github.com/saiko-psych/semiautomatic_termino/actions/workflows/tests.yml/badge.svg)](https://github.com/saiko-psych/semiautomatic_termino/actions/workflows/tests.yml)
+
 Daily-cron automation around [termino.gv.at](https://www.termino.gv.at/), built for university research groups that need to manage many participants and supervisors without drowning in coordination email.
 
 The script reads supervisor (Versuchsleiter:in, "VL") assignments from an Excel file in your group's cloud, syncs the schedule with Termino, sends confirmation and reminder mails to participants, alerts every VL about their slot the day before, and (optionally) drops every slot into a shared calendar.

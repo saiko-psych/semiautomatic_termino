@@ -1,0 +1,15 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Deployment / setup question
+    url: https://github.com/saiko-psych/semiautomatic_termino/discussions
+    about: |
+      Please open a discussion (not an issue) for "how do I get this running"
+      questions. Discussions are searchable so other labs benefit from the
+      answer. File an issue here only when you've identified a concrete bug
+      or a missing feature.
+  - name: Read the deployment guide first
+    url: https://github.com/saiko-psych/semiautomatic_termino/blob/main/docs/SERVER_VPN_SETUP.md
+    about: |
+      The full Linux-server setup guide covers openconnect-sso, sudoers,
+      udev rules, systemd timers, and PlaintextKeyring. Most "it doesn't
+      work" issues are a missing step from there.

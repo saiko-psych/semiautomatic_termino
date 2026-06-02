@@ -115,3 +115,6 @@ docs/AUTO-VPN-TEST-REPORT.md
 # Backup files
 *.bak
 *.bak*
+# Sandbox / dev-environment recovery scripts — internal only
+git_setup.ps1
+repair.ps1

@@ -82,3 +82,18 @@ SERVER_DEPLOY_PLAN.md
 
 # --- Patch bundle (local-only, applied then deleted) ---
 .patches/
+
+# === Personal / internal notes — NEVER commit ===
+CLAUDE.md
+NEXT_COMMIT.md
+docs/UNIGRAZ_OPENCONNECT_ROADMAP.md
+docs/AUTO-VPN-TEST-REPORT.md
+COWORK_PROMPT*.md
+
+# Working preferences / status files
+STATUS.md
+TESTING.md
+
+# Backup files
+*.bak
+*.bak*

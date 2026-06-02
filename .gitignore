@@ -83,7 +83,7 @@ SERVER_DEPLOY_PLAN.md
 # --- Patch bundle (local-only, applied then deleted) ---
 .patches/
 
-# === Personal / internal notes — NEVER commit ===
+# === Personal / internal notes ï¿½ NEVER commit ===
 CLAUDE.md
 NEXT_COMMIT.md
 docs/UNIGRAZ_OPENCONNECT_ROADMAP.md
@@ -93,6 +93,24 @@ COWORK_PROMPT*.md
 # Working preferences / status files
 STATUS.md
 TESTING.md
+
+# Backup files
+*.bak
+*.bak*
+
+# === Personal / internal notes â€” NEVER commit ===
+# These files contain workflow preferences, status, internal architecture
+# notes, and quoted email correspondence with uniIT. They stay LOCAL only.
+CLAUDE.md
+NEXT_COMMIT.md
+STATUS.md
+TESTING.md
+COWORK_PROMPT*.md
+
+# Internal docs with account-specific identifiers
+docs/SERVER_VPN_SETUP.md
+docs/UNIGRAZ_OPENCONNECT_ROADMAP.md
+docs/AUTO-VPN-TEST-REPORT.md
 
 # Backup files
 *.bak

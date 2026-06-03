@@ -324,9 +324,8 @@ class ExchangeEWSSink(CalendarSink):
     Uni-Graz Outlook calendar via Exchange Web Services.
 
     Re-uses the same Basic-Auth credentials as the mail sender.  To be
-    idempotent, every event body contains a hidden line
-        X-TERMINO-ID: <uid>
-    that we search for and delete before saving the new copy.
+    idempotent, every event body contains a hidden ``X-TERMINO-ID: <uid>``
+    line that we search for and delete before saving the new copy.
 
     Requires VPN to reach webmail.uni-graz.at.
     """

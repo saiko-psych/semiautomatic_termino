@@ -121,3 +121,10 @@ repair.ps1
 # Sandbox / dev-environment recovery scripts (internal only)
 git_setup.ps1
 repair.ps1
+
+# Sphinx / Read the Docs build output
+docs/_build/
+docs/reference/api/generated/
+# autosummary :toctree: generated stubs anywhere under docs/ (incl. stray ones
+# produced from example blocks in planning docs)
+docs/**/generated/

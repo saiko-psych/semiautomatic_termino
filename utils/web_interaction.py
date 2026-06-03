@@ -442,6 +442,7 @@ def termino_bookings(session_id, editing_url):
 
     Returns:
     - pd.DataFrame: A DataFrame containing the extracted booking data, including:
+
         - Short ID
         - Place (Booking location/number)
         - Time
@@ -548,6 +549,7 @@ def id_to_remove(buttons_list, removed_ids):
 
     Returns:
     - tuple: A tuple containing three elements:
+
         - `removed_button_id` (str): The ID of the button that was removed.
         - `updated_buttons` (list): A list of updated button IDs, with adjusted indices.
         - `removed_ids` (int): The updated counter reflecting the number of removed buttons.
@@ -1020,16 +1022,18 @@ def insert_new_app_in_termino(kekse, editing_url, df_kombiniert):
     and ensures that the correct fields (date, time, place, and short ID) are entered.
 
     Args:
-    - kekse (dict): A dictionary containing the cookies required for the session. The keys are cookie names, 
-                    and the values are the corresponding cookie values.
+
+    - kekse (dict): A dictionary containing the cookies required for the session. The keys are cookie names,
+      and the values are the corresponding cookie values.
     - editing_url (str): The URL of the Termino page where appointments are to be added.
-    - df_kombiniert (pandas.DataFrame): A DataFrame containing appointment data. It should have columns for 
-                                         'Date', 'Time', 'Place', 'Short ID', and a boolean 'Neuer_Termin' 
-                                         indicating whether a new appointment should be added.
+    - df_kombiniert (pandas.DataFrame): A DataFrame containing appointment data. It should have columns for
+      'Date', 'Time', 'Place', 'Short ID', and a boolean 'Neuer_Termin'
+      indicating whether a new appointment should be added.
 
     Returns:
-    - None: The function doesn't return any value. It performs the action of inserting appointments 
-            into Termino and handles the WebDriver interaction.
+
+    - None: The function doesn't return any value. It performs the action of inserting appointments
+      into Termino and handles the WebDriver interaction.
 
     Example:
     ```

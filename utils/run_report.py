@@ -16,6 +16,7 @@ report.add_error() rein - sie tauchen sowohl im Summary als auch im
 Mail-Report auf.
 
 Am Ende des Runs:
+
 - ``report.to_console_summary()`` gibt eine kurze textbasierte
   Zusammenfassung, max 20 Zeilen - das ist was der User in PowerShell
   sieht. Knapp und professionell.

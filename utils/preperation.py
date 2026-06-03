@@ -121,13 +121,15 @@ def config_text(config_data, env_data):
     visibility and understanding.
 
     Args:
-    - config_data (dict): A dictionary containing configuration settings such as booking list, study name, 
-                           flags for printing booking lists, and feature toggles.
-    - env_data (dict): A dictionary containing sensitive environment variables like email credentials 
-                       and Termino usernames.
+
+    - config_data (dict): A dictionary containing configuration settings such as booking list, study name,
+      flags for printing booking lists, and feature toggles.
+    - env_data (dict): A dictionary containing sensitive environment variables like email credentials
+      and Termino usernames.
 
     Prints:
     - Various environment and configuration settings to the console, including:
+
         - Termino username and password
         - Yahoo email address and credentials
         - Configuration flags (e.g., whether to print current bookings)
@@ -270,9 +272,10 @@ def booking_list_preperation(actual_booking_list_csv, config_data):
     relevant details about the bookings based on the configuration settings.
 
     Args:
+
     - actual_booking_list_csv (str): The path to the CSV file containing the actual booking list.
-    - config_data (dict): A dictionary containing configuration data, including flags 
-                          for printing the booking list and sending first emails.
+    - config_data (dict): A dictionary containing configuration data, including flags
+      for printing the booking list and sending first emails.
 
     Returns:
     - date_prob (list): A list of dates from the actual booking list.
@@ -291,8 +294,9 @@ def booking_list_preperation(actual_booking_list_csv, config_data):
     - Updates the first email sent list to include new names.
 
     Notes:
+
     - The function uses the provided `config_data` to determine whether to print booking lists and emails.
-    - If a person from the actual booking list has not received the first email yet, they will be added to the list 
+    - If a person from the actual booking list has not received the first email yet, they will be added to the list
       of people to receive the first email.
     """
     
@@ -479,6 +483,7 @@ def tomorrow_today_data(date_prob, name_prob, email_prob, tomorrow, today):
 def get_ids_to_remove(df_termino, today_as_datetime, tomorrow_as_datetime, tomorrow_time):
     """
     Identify Termino-Buchungen that should be deleted:
+
     - bookings whose date is today or in the past, and
     - bookings for tomorrow whose time slot does not appear in ``tomorrow_time``
       (meaning no participant booked that slot).

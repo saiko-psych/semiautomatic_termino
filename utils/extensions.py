@@ -219,6 +219,7 @@ def data_prep(tomorrow, df_termino):
     - Filters the events based on valid supervisor (VL) information and events that occur after tomorrow's date.
     - Converts date and time information into a combined datetime format for comparison.
     - Returns two datasets:
+
         - differenz_termino: Events from df_termino that do not match the upcoming events.
         - zukuenftige_ereignisse: Events that are upcoming (after tomorrow).
 

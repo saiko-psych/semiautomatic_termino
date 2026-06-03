@@ -177,7 +177,7 @@ class UniCloudClient:
 
     def upload_if_new(self, local_path: Path, remote_path: str) -> str:
         """
-        Upload ONLY if the remote file does not exist. Uses 'If-None-Match: *'
+        Upload ONLY if the remote file does not exist. Uses ``If-None-Match: *``
         so the server enforces the precondition - no race condition.
         Raises UniCloudError if the file is already there.
         """

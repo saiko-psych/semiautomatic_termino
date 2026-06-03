@@ -110,6 +110,37 @@ class CaptureGuardTests(unittest.TestCase):
         out = mds.capture(spec, page, out_dir="/tmp")
         self.assertEqual(out, os.path.join("/tmp", "shot.png"))
 
+    def test_requires_blur_false_captures_without_guard_or_blur(self):
+        # Explicit per-shot opt-out for verified PII-free pages (public /
+        # synthetic test data): no blur applied, guard skipped, still captured.
+        spec = mds.ShotSpec(
+            name="public",
+            url="https://example/public",
+            blur_selectors=[],
+            out_filename="public.png",
+            requires_blur=False,
+        )
+        page = self._fake_page(0)  # empty selectors would normally abort
+        out = mds.capture(spec, page, out_dir="/tmp")
+        page.add_style_tag.assert_not_called()
+        page.screenshot.assert_called_once()
+        self.assertEqual(out, os.path.join("/tmp", "public.png"))
+
+
+class BuildShotsTests(unittest.TestCase):
+    def test_builds_public_booking_shot_from_config(self):
+        shots = mds.build_shots({"booking_url": "https://x/meet/de/b/abc-1"}, {})
+        pub = {s.name: s for s in shots}.get("termino-public-booking")
+        self.assertIsNotNone(pub)
+        self.assertEqual(pub.url, "https://x/meet/de/b/abc-1")
+        self.assertTrue(pub.requires_blur)  # blur the public contact email
+        self.assertIn('a[href^="mailto:"]', pub.blur_selectors)
+        self.assertFalse(pub.use_termino_auth)  # capture anonymously (participant view)
+
+    def test_skips_public_shot_when_no_booking_url(self):
+        shots = mds.build_shots({}, {})
+        self.assertNotIn("termino-public-booking", [s.name for s in shots])
+
 
 class TerminoCookieTests(unittest.TestCase):
     """The tool reuses the project's Termino login by translating session.json's

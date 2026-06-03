@@ -43,6 +43,15 @@ class ShotSpec:
     blur_selectors: list[str]
     out_filename: str
     extra_wait_selector: str = ""  # optional element to wait for before capture
+    # Default True = the PII guard is enforced. Set False ONLY for pages verified
+    # to be free of real PII (a public page, or one filled with synthetic test
+    # data). This is a deliberate, named per-shot decision, not a silent bypass.
+    requires_blur: bool = True
+    # Default False = capture anonymously (a fresh context with no cookies). Set
+    # True for login-gated Termino pages so the cached session cookie is injected.
+    # The public booking page must stay False, or the injected cookie turns it
+    # into the logged-in organiser view instead of the participant view.
+    use_termino_auth: bool = False
 
 
 def build_blur_css(selectors: list[str]) -> str:
@@ -56,20 +65,22 @@ def capture(spec: ShotSpec, page, out_dir: str) -> str:
 
     Aborts via PIIGuardError if no PII selectors are configured, or if any
     configured selector matches nothing, so we never capture a page whose PII
-    layout we no longer recognise.
+    layout we no longer recognise. The guard is skipped only when the shot is
+    explicitly marked ``requires_blur=False`` (a verified PII-free page).
     """
-    if not spec.blur_selectors:
-        raise PIIGuardError(
-            f"{spec.name}: no PII selectors configured; refusing to capture "
-            f"(an empty selector list would blur nothing)"
-        )
-    missing = [sel for sel in spec.blur_selectors if page.locator(sel).count() == 0]
-    if missing:
-        raise PIIGuardError(
-            f"{spec.name}: expected PII selectors not found {missing}; "
-            f"aborting to avoid an un-blurred capture"
-        )
-    page.add_style_tag(content=build_blur_css(spec.blur_selectors))
+    if spec.requires_blur:
+        if not spec.blur_selectors:
+            raise PIIGuardError(
+                f"{spec.name}: no PII selectors configured; refusing to capture "
+                f"(an empty selector list would blur nothing)"
+            )
+        missing = [sel for sel in spec.blur_selectors if page.locator(sel).count() == 0]
+        if missing:
+            raise PIIGuardError(
+                f"{spec.name}: expected PII selectors not found {missing}; "
+                f"aborting to avoid an un-blurred capture"
+            )
+        page.add_style_tag(content=build_blur_css(spec.blur_selectors))
     out_path = os.path.join(out_dir, spec.out_filename)
     page.screenshot(path=out_path, full_page=True)
     return out_path
@@ -107,6 +118,15 @@ def termino_cookies_from_session(session_data) -> list[dict]:
     ]
 
 
+def _load_json(path: str) -> dict:
+    """Read a JSON file, returning ``{}`` if it is missing or unparseable."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, ValueError):
+        return {}
+
+
 def load_termino_cookies(root: str) -> list[dict]:
     """Read ``session.json`` from the project root and return Playwright cookies.
 
@@ -114,16 +134,41 @@ def load_termino_cookies(root: str) -> list[dict]:
     that means "run ``uv run python main.py`` first to create a logged-in
     session.json"; non-Termino shots are unaffected (cookies are domain-scoped).
     """
-    path = os.path.join(root, "session.json")
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return termino_cookies_from_session(json.load(f))
-    except (FileNotFoundError, ValueError):
-        return []
+    return termino_cookies_from_session(_load_json(os.path.join(root, "session.json")))
 
 
-# Declarative capture map. Selectors are intentionally broad (whole columns).
-# Fill in real selectors/URLs when capturing against the live sites.
+def build_shots(config: dict, session: dict) -> list[ShotSpec]:
+    """Construct the capture list from the local config.json + session.json.
+
+    Keeping the study-specific URLs here (resolved at runtime from gitignored
+    config) means nothing study-specific lives in the committed tool. This grows
+    as we add the login-gated pages (edit page, booking list) once their PII
+    selectors are known.
+    """
+    shots: list[ShotSpec] = []
+    booking_url = (config or {}).get("booking_url")
+    if booking_url:
+        # Public participant booking page (anonymous view). The only sensitive
+        # bit is the organiser's contact email, rendered as a dedicated
+        # <a href="mailto:..."> link in the study description -> blur just that,
+        # keeping the rest of the page readable. The guard aborts if the link is
+        # gone (page changed), so we never publish the email unblurred.
+        shots.append(
+            ShotSpec(
+                name="termino-public-booking",
+                url=booking_url,
+                blur_selectors=['a[href^="mailto:"]'],
+                out_filename="termino-public-booking.png",
+                requires_blur=True,
+                use_termino_auth=False,
+            )
+        )
+    return shots
+
+
+# Manual extra shots, appended to the config-derived ones from build_shots().
+# Add ShotSpec(...) here for anything not covered by config (kept local; do not
+# commit study-specific URLs/selectors you would not want public).
 SHOTS: list[ShotSpec] = []
 
 
@@ -132,31 +177,37 @@ def _run() -> None:  # pragma: no cover - needs a real browser + credentials
 
     out_dir = os.path.join(_ROOT, "docs", "_static", "screenshots")
     os.makedirs(out_dir, exist_ok=True)
-    if not SHOTS:
-        print("No ShotSpecs configured yet. Edit SHOTS in this file.")
+    config = _load_json(os.path.join(_ROOT, "config.json"))
+    session = _load_json(os.path.join(_ROOT, "session.json"))
+    shots = build_shots(config, session) + SHOTS
+    if not shots:
+        print("No shots to capture (no booking_url in config.json and SHOTS is empty).")
         return
-    cookies = load_termino_cookies(_ROOT)
-    if cookies:
-        print(f"reusing {len(cookies)} Termino session cookie(s) from session.json")
-    else:
-        print(
-            "no Termino cookies in session.json - termino.gv.at pages will hit "
-            "the login wall (the PII guard then aborts). Run "
-            "`uv run python main.py` first to create a logged-in session.json."
-        )
+    cookies = termino_cookies_from_session(session)
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        context = browser.new_context()
-        if cookies:
-            context.add_cookies(cookies)
-        page = context.new_page()
         try:
-            for spec in SHOTS:
+            for spec in shots:
+                # Fresh context per shot so the Termino cookie is injected ONLY
+                # for login-gated shots; public/anonymous shots stay un-authed.
+                context = browser.new_context()
+                if spec.use_termino_auth:
+                    if not cookies:
+                        print(
+                            f"[{spec.name}] needs Termino auth but session.json has no "
+                            f"cookies - run `uv run python main.py` first. Skipping."
+                        )
+                        context.close()
+                        continue
+                    context.add_cookies(cookies)
+                    print(f"[{spec.name}] using cached Termino session cookie(s)")
+                page = context.new_page()
                 page.goto(spec.url)
                 if spec.extra_wait_selector:
                     page.wait_for_selector(spec.extra_wait_selector)
                 path = capture(spec, page, out_dir)
                 print(f"saved {path}")
+                context.close()
         finally:
             browser.close()
 

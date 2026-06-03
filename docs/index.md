@@ -7,6 +7,15 @@ about tomorrow's slot, and optionally drops each slot into a shared calendar.
 
 This documentation is generated with Sphinx + MyST and hosted on Read the Docs.
 
+```{figure} _static/screenshots/termino-public-booking.png
+:alt: The public Termino booking page a participant sees, with the contact email blurred
+:width: 100%
+
+The participant-facing Termino booking page — what someone sees when they open
+the booking link. The script keeps this list in sync and mails everyone around
+it. (Organiser contact email blurred.)
+```
+
 ```{toctree}
 :maxdepth: 2
 :caption: Getting started

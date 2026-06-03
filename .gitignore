@@ -118,3 +118,6 @@ docs/AUTO-VPN-TEST-REPORT.md
 # Sandbox / dev-environment recovery scripts — internal only
 git_setup.ps1
 repair.ps1
+# Sandbox / dev-environment recovery scripts (internal only)
+git_setup.ps1
+repair.ps1

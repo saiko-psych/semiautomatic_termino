@@ -2,6 +2,10 @@
 
 [![tests](https://github.com/saiko-psych/semiautomatic_termino/actions/workflows/tests.yml/badge.svg)](https://github.com/saiko-psych/semiautomatic_termino/actions/workflows/tests.yml)
 
+> **Status:** active development by the maintainer for the Uni-Graz music psychology study workflow. This is a personal tool that I share publicly because parts of it may be useful to other research groups. **Use at your own risk** — there is no warranty, no support contract, and no affiliation with Uni-Graz IT. Pull requests and issues are welcome.
+>
+> **Note on the VPN integration:** the Windows + Linux auto-VPN modules (`utils/auto_vpn.py`, `utils/auto_vpn_win.py`, `utils/vpn_provider.py`) and the Windows Scheduled-Task wrappers (`tools/setup-windows-tasks.ps1` etc.) are general-purpose and will progressively be extracted into a separate cross-platform repository, [`automatic-openconnect`](https://github.com/saiko-psych/automatic-openconnect) (currently being set up). Once stable there, `semiautomatic_termino` will depend on it as an optional package instead of carrying the code inline. No breaking changes are planned for direct users.
+
 Daily-cron automation around [termino.gv.at](https://www.termino.gv.at/), built for university research groups that need to manage many participants and supervisors without drowning in coordination email.
 
 The script reads supervisor (Versuchsleiter:in, "VL") assignments from an Excel file in your group's cloud, syncs the schedule with Termino, sends confirmation and reminder mails to participants, alerts every VL about their slot the day before, and (optionally) drops every slot into a shared calendar.
@@ -349,28 +353,48 @@ macOS. For unattended runs on those platforms, either keep the
 connection alive in a long-lived session, or switch to the Yahoo SMTP
 backend (no VPN required).
 
-### Linux server - openconnect-sso (headless)
+### Windows / Linux - openconnect-sso (headless / one-click)
+
+> The detailed installation guide for both platforms is migrating to the [`automatic-openconnect`](https://github.com/saiko-psych/automatic-openconnect) repository. Once that repo is published, install it via `uv tool install --from git+...` and the `auto_vpn` config block below will work out of the box. Until then, see the brief notes in this section plus `utils/auto_vpn.py` / `utils/auto_vpn_win.py` docstrings.
 
 Uni-Graz delegates VPN authentication to Keycloak (SAML), which means
-**plain `openconnect` does NOT work** out of the box - it gets login
+**plain `openconnect` does NOT work** out of the box — it gets login
 form submissions rejected. The supported headless path uses
 [`openconnect-sso`](https://github.com/vlaci/openconnect-sso), a Python
-wrapper that drives a headless Qt-WebEngine browser through the SAML
-flow, extracts the AnyConnect session cookie, then hands off to plain
+wrapper that drives a Qt-WebEngine browser through the SAML flow,
+extracts the AnyConnect session cookie, then hands off to plain
 `openconnect` for the actual tunnel.
 
-The full setup - apt packages, sudoers rule for `/usr/sbin/openconnect`,
-LXC host-side TUN passthrough, keyring credentials, the
-`~/.config/openconnect-sso/config.toml` DOM selectors for Keycloak,
-`vpn_up.sh` / `vpn_down.sh` wrappers, systemd Pre/Post hooks - is
-documented step by step in **[`docs/SERVER_VPN_SETUP.md`](docs/SERVER_VPN_SETUP.md)**.
-That doc is the canonical reference; this README only summarises.
+`openconnect-sso` must be installed as a uv tool (its `keyring<24`
+pin conflicts with the script's `keyring>=25`, so it can't be a
+regular project dep):
+
+```bash
+uv tool install --with PyQt6 --with 'setuptools<70' --with 'keyrings.alt' --with 'pycryptodome' openconnect-sso
+```
+
+On **Linux** the setup needs apt/dnf packages, a sudoers rule for
+`/usr/sbin/openconnect`, optional LXC host-side TUN passthrough,
+keyring credentials, a `~/.config/openconnect-sso/config.toml` with
+the Uni-Graz Keycloak DOM selectors, and (for systemd cron deployment)
+`vpn_up.sh` / `vpn_down.sh` wrappers as `ExecStartPre` / `ExecStopPost`.
+
+On **Windows** the setup needs `openconnect-gui-1.6.2-win64` (ships
+the Wintun driver + `openconnect.exe`), `openconnect-sso` via uv tool,
+the same `config.toml`, and Administrator privileges for the Wintun
+adapter. `tools/setup-windows-tasks.ps1` registers three Scheduled
+Tasks (`TerminoVPN-Up`, `TerminoVPN-Down`, `TerminoRun`) with
+"Run with highest privileges" so day-to-day use needs zero UAC
+prompts — three desktop shortcuts that just work after a one-time
+admin setup.
 
 Two ways to integrate the tunnel with the daily run:
 
 1. **External bash wrappers + systemd** (recommended). `vpn_up.sh` runs
    as `ExecStartPre` on `termino.service`, `vpn_down.sh` as
-   `ExecStopPost`. See the systemd block in `docs/SERVER_VPN_SETUP.md`.
+   `ExecStopPost`. See `automatic-openconnect` (in setup) for the
+   systemd unit template, or the docstring of `utils/auto_vpn.py`
+   for the underlying pattern.
 
 2. **In-script** (`config.auto_vpn.enabled = true`). `utils/auto_vpn.py`
    wraps the workflow in a Python context manager that calls the same
@@ -414,7 +438,7 @@ The script is designed to run unattended on a Proxmox LXC container or any small
    sudo apt install chromium chromium-driver
    ```
 
-2. **VPN must be available** if you use the EWS mail backend. Headless `openconnect-sso` against `univpn.uni-graz.at` is the documented path - see [`docs/SERVER_VPN_SETUP.md`](docs/SERVER_VPN_SETUP.md). The Yahoo SMTP backend has no VPN requirement.
+2. **VPN must be available** if you use the EWS mail backend. Headless `openconnect-sso` against `univpn.uni-graz.at` is the documented path — see the VPN section above plus the `utils/auto_vpn*.py` docstrings. Full installation guide is being migrated to [`automatic-openconnect`](https://github.com/saiko-psych/automatic-openconnect). The Yahoo SMTP backend has no VPN requirement.
 
 A typical systemd timer pair:
 
@@ -529,13 +553,13 @@ That's the openpyxl epoch glitch for time-only cells. The defensive filter in `_
 **Tests fail with `ImportError: cannot import name 'TypeAlias'` on Python 3.9**
 The codebase uses PEP 604 union syntax (`int | None`). Upgrade to Python 3.10 or newer.
 
-For anything not covered here, check the journal of past bugs and gotchas in [`CLAUDE.md`](CLAUDE.md).
+For anything not covered here, check the docstrings and tests of the relevant module.
 
 ---
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow and `CLAUDE.md` for project conventions and known gotchas. Pull requests welcome.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev workflow. Pull requests welcome.
 
 Unit tests:
 

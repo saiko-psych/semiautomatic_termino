@@ -17,6 +17,7 @@ Run:  uv run --extra screenshots python tools/make_docs_screenshots.py
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -74,6 +75,53 @@ def capture(spec: ShotSpec, page, out_dir: str) -> str:
     return out_path
 
 
+# Termino auth reuse: the daily script logs into termino.gv.at (requests-based,
+# see utils.web_interaction.termino_login) and caches the resulting Drupal
+# session cookie as a flat {name: value} dict under "kekse" in session.json
+# (see utils.preperation.session_json). We re-use that same cookie here instead
+# of re-implementing the antibot/login flow. If session.json is absent or the
+# cookie has expired, Termino redirects to its login page, which has none of the
+# configured PII selectors -> the capture() guard aborts. So a stale session can
+# never produce an un-blurred capture; it just fails loudly.
+TERMINO_COOKIE_DOMAIN = ".termino.gv.at"
+
+
+def termino_cookies_from_session(session_data) -> list[dict]:
+    """Translate session.json's flat ``kekse`` dict into Playwright cookies.
+
+    Returns ``[]`` when there are no cookies (missing/empty ``kekse``), so the
+    caller can decide whether that is fatal for a given shot.
+    """
+    kekse = (session_data or {}).get("kekse") or {}
+    return [
+        {
+            "name": name,
+            "value": value,
+            "domain": TERMINO_COOKIE_DOMAIN,
+            "path": "/",
+            "httpOnly": True,
+            "secure": True,
+            "sameSite": "Lax",
+        }
+        for name, value in kekse.items()
+    ]
+
+
+def load_termino_cookies(root: str) -> list[dict]:
+    """Read ``session.json`` from the project root and return Playwright cookies.
+
+    Returns ``[]`` if the file is missing or unparseable — for a Termino shot
+    that means "run ``uv run python main.py`` first to create a logged-in
+    session.json"; non-Termino shots are unaffected (cookies are domain-scoped).
+    """
+    path = os.path.join(root, "session.json")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return termino_cookies_from_session(json.load(f))
+    except (FileNotFoundError, ValueError):
+        return []
+
+
 # Declarative capture map. Selectors are intentionally broad (whole columns).
 # Fill in real selectors/URLs when capturing against the live sites.
 SHOTS: list[ShotSpec] = []
@@ -87,9 +135,21 @@ def _run() -> None:  # pragma: no cover - needs a real browser + credentials
     if not SHOTS:
         print("No ShotSpecs configured yet. Edit SHOTS in this file.")
         return
+    cookies = load_termino_cookies(_ROOT)
+    if cookies:
+        print(f"reusing {len(cookies)} Termino session cookie(s) from session.json")
+    else:
+        print(
+            "no Termino cookies in session.json - termino.gv.at pages will hit "
+            "the login wall (the PII guard then aborts). Run "
+            "`uv run python main.py` first to create a logged-in session.json."
+        )
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page()
+        context = browser.new_context()
+        if cookies:
+            context.add_cookies(cookies)
+        page = context.new_page()
         try:
             for spec in SHOTS:
                 page.goto(spec.url)

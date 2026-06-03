@@ -6,8 +6,10 @@ fail-safe PII guard behaves correctly. Playwright is never imported here.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
+import tempfile
 import unittest
 from unittest.mock import MagicMock
 
@@ -107,6 +109,43 @@ class CaptureGuardTests(unittest.TestCase):
         page = self._fake_page(1)
         out = mds.capture(spec, page, out_dir="/tmp")
         self.assertEqual(out, os.path.join("/tmp", "shot.png"))
+
+
+class TerminoCookieTests(unittest.TestCase):
+    """The tool reuses the project's Termino login by translating session.json's
+    flat ``kekse`` cookie dict into Playwright's add_cookies() format."""
+
+    def test_translates_kekse_to_playwright_cookies(self):
+        cookies = mds.termino_cookies_from_session({"kekse": {"SESSabc": "v1"}})
+        self.assertEqual(len(cookies), 1)
+        c = cookies[0]
+        self.assertEqual(c["name"], "SESSabc")
+        self.assertEqual(c["value"], "v1")
+        self.assertEqual(c["domain"], ".termino.gv.at")
+        self.assertEqual(c["path"], "/")
+        self.assertTrue(c["secure"])
+        self.assertTrue(c["httpOnly"])
+
+    def test_multiple_cookies(self):
+        cookies = mds.termino_cookies_from_session({"kekse": {"a": "1", "b": "2"}})
+        self.assertEqual(len(cookies), 2)
+
+    def test_empty_or_missing_kekse_returns_empty(self):
+        self.assertEqual(mds.termino_cookies_from_session({"kekse": {}}), [])
+        self.assertEqual(mds.termino_cookies_from_session({}), [])
+        self.assertEqual(mds.termino_cookies_from_session(None), [])
+
+    def test_load_reads_session_json(self):
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "session.json"), "w", encoding="utf-8") as f:
+                json.dump({"kekse": {"SESSxyz": "tok"}}, f)
+            cookies = mds.load_termino_cookies(d)
+            self.assertEqual(len(cookies), 1)
+            self.assertEqual(cookies[0]["name"], "SESSxyz")
+
+    def test_load_missing_file_returns_empty(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(mds.load_termino_cookies(d), [])
 
 
 if __name__ == "__main__":

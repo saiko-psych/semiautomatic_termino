@@ -57,14 +57,6 @@ Pick one of the two supported backends:
 
 For the Google backend, set `google_spreadsheet_url` in `sensible.env`.
 
-```{figure} ../_static/screenshots/unicloud-folder.png
-:alt: The uniCLOUD/Nextcloud folder holding versuchsleiter.xlsx
-:width: 100%
-
-With the uniCLOUD backend, the supervisor sheet (`versuchsleiter.xlsx`) lives in
-your Nextcloud at the configured `xlsx_path`; the script reads it over WebDAV.
-```
-
 ### calendar_provider
 
 Pick one of the three options:

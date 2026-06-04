@@ -29,4 +29,13 @@ Each provider is an abstract base class with a small interface (`.send()` for ma
 | `status.py` / `status.json` | Per-day task state (gitignored) |
 | `session.json` | Termino session cache (gitignored) |
 
+```{figure} ../_static/screenshots/termino-edit.png
+:alt: The Termino booking-list edit page kept in sync by the script (study text blurred)
+:width: 100%
+
+The Termino booking-list edit page that `utils/web_interaction.py` drives — the
+date options the script inserts, sorts, and prunes each day. The study
+description and account name are blurred.
+```
+
 For the full docstring-level API reference see {doc}`../reference/api/index`.

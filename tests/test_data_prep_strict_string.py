@@ -73,9 +73,11 @@ class TestDataPrepUnderStrictStringDtype(unittest.TestCase):
             format="%d.%m.%Y %H:%M",
         )
 
-        # Sanity: confirm the strict dtype IS in effect.
-        self.assertEqual(str(df_termino["Place"].dtype), "str",
-                         "future.infer_string did not kick in")
+        # Sanity: confirm the strict dtype IS in effect. The repr differs by
+        # pandas version - 2.2.x with pyarrow reports "string", 2.3+ reports
+        # "str" - but both are the strict string mode this test guards.
+        self.assertIn(str(df_termino["Place"].dtype), ("str", "string"),
+                      "future.infer_string did not kick in")
 
         # The point: this used to raise TypeError.
         out = data_prep_2(zuk, df_termino)

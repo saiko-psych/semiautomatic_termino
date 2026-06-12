@@ -25,6 +25,7 @@
     },
     "calendar_provider": {
         "_comment_type": "Pick one: 'none' (skip calendar entirely), 'unicloud-caldav' (Nextcloud calendar at cloud.uni-graz.at), or 'uni-graz-ews' (Outlook calendar).",
+        "_comment_verified": "'unicloud-caldav' is the production-verified path (live on the LXC daily run). 'uni-graz-ews' is supported as an alternative.",
         "type": "none",
         "_comment_username": "If type != 'none', set: 'username': 'your.nextcloud_username' or 'your.account@edu.uni-graz.at'.",
         "_comment_calendar_name": "If type != 'none', set: 'calendar_name': 'YourCalendarName'.",

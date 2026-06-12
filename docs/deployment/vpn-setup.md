@@ -14,10 +14,16 @@ The standard path for daily laptop use is Cisco Secure Client:
 
 There is no reliable headless CLI for Cisco Secure Client on Windows or macOS. For unattended laptop runs, either keep the VPN session alive in a long-lived desktop session, or switch to the Yahoo SMTP backend.
 
-## Headless / one-click
+## Headless
 
 The headless path uses [`openconnect-sso`](https://github.com/vlaci/openconnect-sso), a Python wrapper that drives a Qt-WebEngine browser through the Uni-Graz Keycloak SAML flow and hands off to plain `openconnect` for the tunnel. Plain `openconnect` alone does not work because Uni-Graz rejects its login form submissions.
 
-The full installation and configuration guide — including the `config.toml` Keycloak DOM selectors, the systemd `ExecStartPre`/`ExecStopPost` wrapper pattern, and the Windows Scheduled-Task approach — is being migrated to the [`automatic-openconnect`](https://github.com/saiko-psych/automatic-openconnect) repository. Once that repo is published, `openconnect-sso` will be installable as a `uv tool` and the `auto_vpn` config block will work out of the box.
+There are **two ways** to bring this VPN up around the daily run; pick one per host, don't run both:
 
-In the meantime, the current detailed notes for the Linux server setup live in `docs/SERVER_VPN_SETUP.md` in this repo.
+1. **bash wrappers + systemd (the production Linux path).** `deploy/scripts/vpn_up.sh` runs `openconnect-sso --authenticate` (via `xvfb-run`) and then `sudo openconnect --background`; `vpn_down.sh` tears it down. systemd calls them as `ExecStartPre` / `ExecStopPost`. This is what the production LXC uses — full setup in {doc}`server-cron`, ready-to-use files in `deploy/`.
+
+2. **The `auto_vpn` config block (opt-in / cross-platform).** The script can bring the VPN up itself via `utils/auto_vpn.py` (Linux) / `utils/auto_vpn_win.py` (Windows) when `config.json` has `auto_vpn.enabled: true`. This is the path for Windows hosts and for runs without systemd. It uses the same `openconnect-sso` tool and keyring credentials.
+
+Either way, install `openconnect-sso` as a `uv tool` with the pins shown in {doc}`server-cron`, and provide the Keycloak DOM selectors via `~/.config/openconnect-sso/config.toml` (template: `deploy/openconnect-sso/config.toml.example`).
+
+A separate sister project, [`automatic-openconnect`](https://automatic-openconnect.readthedocs.io/), packages this same headless VPN logic as a standalone, cross-platform library + tray app. Termino does **not** depend on it — the two share the approach, not the code.

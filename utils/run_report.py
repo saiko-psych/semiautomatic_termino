@@ -29,6 +29,7 @@ Am Ende des Runs:
 
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Optional
@@ -51,6 +52,10 @@ class RunReport:
     phases: List[PhaseReport] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
+    # Full traceback for an unexpected crash, rendered as an escaped <pre> in
+    # the HTML mail so a post-mortem has the source location - not just the
+    # exception type. Empty on a clean run.
+    error_detail: str = ""
 
     # ---- collection helpers ---------------------------------------------
 
@@ -72,6 +77,10 @@ class RunReport:
 
     def add_error(self, msg: str) -> None:
         self.errors.append(msg)
+
+    def set_error_detail(self, detail: str) -> None:
+        """Attach a full traceback (or other long error text) to the report."""
+        self.error_detail = detail or ""
 
     def finalize(self) -> None:
         if self.finished is None:
@@ -105,6 +114,14 @@ class RunReport:
         lines.append("-" * 56)
         if self.errors:
             lines.append(f"  Errors  : {len(self.errors)}")
+        if self.error_detail:
+            last = next(
+                (ln for ln in reversed(self.error_detail.splitlines())
+                 if ln.strip()),
+                "",
+            )
+            if last:
+                lines.append(f"  Cause   : {last.strip()}")
         if self.warnings:
             lines.append(f"  Warnings: {len(self.warnings)}")
         dur = (self.finished - self.started).total_seconds()
@@ -142,6 +159,15 @@ class RunReport:
             errs_html = ("<h3>Errors</h3><ul>"
                          + "".join(f"<li>{e}</li>" for e in self.errors)
                          + "</ul>")
+        detail_html = ""
+        if self.error_detail:
+            detail_html = (
+                "<h3>Traceback</h3>"
+                "<pre style='background:#f8d7da;padding:8px;border-radius:4px;"
+                "white-space:pre-wrap;font-size:0.85em'>"
+                + html.escape(self.error_detail)
+                + "</pre>"
+            )
         dur = (self.finished - self.started).total_seconds()
         return (
             "<html><body style='font-family:sans-serif'>"
@@ -153,7 +179,7 @@ class RunReport:
             "style='border-collapse:collapse'>"
             "<tr><th>Phase</th><th>Status</th><th>Count</th><th>Details</th></tr>"
             + "".join(rows) + "</table>"
-            + warns_html + errs_html
+            + warns_html + errs_html + detail_html
             + "<p style='color:#888;font-size:0.85em'>"
             "automatisch generierter Bericht vom Termino-Skript</p>"
             "</body></html>"

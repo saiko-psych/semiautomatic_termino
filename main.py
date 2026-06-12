@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import traceback
 from pathlib import Path
 from typing import Tuple, Optional
 
@@ -678,6 +679,10 @@ def main() -> None:
             else:
                 hint = f"unerwarteter Fehler: {type(e).__name__}"
             report.add_error(hint)
+            # Capture the full traceback so the report mail pinpoints the source
+            # line. The classified hint alone (e.g. "KeyError") is not enough to
+            # diagnose a non-reproducible crash after the fact.
+            report.set_error_detail(traceback.format_exc())
         finally:
             # Print short console summary + send the long mail report.
             report.finalize()
@@ -708,8 +713,8 @@ def main() -> None:
                 else:
                     print(f"  ! Mail-Bericht konnte nicht verschickt werden")
             if workflow_crashed:
-                # Exit cleanly: report has been sent, traceback would only
-                # be noise on top of the structured error already in the report.
+                # Exit cleanly: the report (now including the full traceback)
+                # has been sent; re-dumping it to stderr would be redundant.
                 sys.exit(1)
 
 

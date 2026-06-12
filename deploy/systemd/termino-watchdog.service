@@ -1,0 +1,17 @@
+# RECONSTRUCTED from the behaviour spec in the production status report
+# (2026-06-01), NOT extracted verbatim from the running server. Verify against
+# the live unit and replace if it differs:
+#     systemctl cat termino-watchdog.service
+[Unit]
+Description=Termino watchdog - alert if today's daily run did not succeed
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=termino
+Group=termino
+# ntfy.sh topic to push alerts to (half-secret: whoever knows it can read/post).
+Environment="NTFY_TOPIC=<NTFY_TOPIC>"
+ExecStart=/opt/termino/scripts/watchdog.sh
+StandardOutput=journal
+StandardError=journal

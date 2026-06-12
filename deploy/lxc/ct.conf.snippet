@@ -1,0 +1,10 @@
+# Append these lines to /etc/pve/lxc/<CT_ID>.conf on the Proxmox HOST so an
+# UNPRIVILEGED LXC can open /dev/net/tun for the VPN tunnel.
+# (<CT_ID> = your container id.) Restart the container afterwards.
+
+lxc.cgroup2.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file
+
+lxc.apparmor.profile: generated
+# Keep sys_admin AND net_admin - openconnect needs both for the tun setup.
+lxc.cap.drop: sys_module sys_rawio mac_admin mac_override sys_time sys_resource

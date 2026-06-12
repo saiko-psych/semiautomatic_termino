@@ -1,0 +1,12 @@
+# Lets the unprivileged `termino` service user bring the openconnect VPN tunnel
+# up/down without a password (the user has no password: --disabled-password).
+#
+# sudo matches arguments EXACTLY: the kill/pkill forms below are precisely what
+# vpn_down.sh relies on. `sudo pkill -f <pattern>` would be REJECTED, so the
+# script uses `sudo /bin/kill <pid>` per PID plus the bare `pkill openconnect`
+# failsafe.
+#
+# Install:
+#   install -m 0440 openconnect-termino /etc/sudoers.d/openconnect-termino
+#   visudo -cf /etc/sudoers.d/openconnect-termino   # validate before trusting
+termino ALL=(root) NOPASSWD: /usr/sbin/openconnect, /usr/bin/killall openconnect, /usr/bin/pkill openconnect, /bin/kill

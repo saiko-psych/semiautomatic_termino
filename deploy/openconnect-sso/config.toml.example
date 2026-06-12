@@ -1,0 +1,60 @@
+# openconnect-sso config for the Uni-Graz Keycloak SAML login.
+# Copy to ~/.config/openconnect-sso/config.toml of the service user (mode 0600).
+# IMPORTANT: save as UTF-8 *WITHOUT* BOM - a BOM makes the TOML parser reject it
+# with "invalid character" (PowerShell's `Set-Content -Encoding UTF8` writes a
+# BOM; use `-Encoding utf8NoBOM` or another editor).
+#
+# No secrets live here. Username, password and TOTP code are pulled at runtime
+# from the OS keyring (openconnect-sso namespace). These rules only tell the
+# headless browser WHICH fields to fill.
+
+on_disconnect = ""
+
+[default_profile]
+address = "univpn.uni-graz.at"
+user_group = ""
+name = "Studierende"   # or "Bedienstete" / "Universitaetsbibliothek"
+
+[auto_fill_rules]
+
+# Username
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input#username"
+fill = "username"
+
+# Password
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input#password"
+fill = "password"
+
+# Login button (step 1)
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input#kc-login"
+action = "click"
+
+# MFA choice: pick the authenticator app. The UUID is the Uni-Graz-wide stable
+# Keycloak id for the "Authenticator app" option - identical for every Uni-Graz
+# account, so it is not a secret.
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "label[for='31d086a8-3054-4551-b80c-35a07358d88d']"
+action = "click"
+
+# TOTP code
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input[name=otp]"
+fill = "totp"
+
+# Login button (step 2, after TOTP)
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input#kc-login"
+action = "click"
+
+# Accept an eventual consent screen
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "input#kc-accept"
+action = "click"
+
+# Stop indicator: if an error span appears, abort the auto-fill
+[[auto_fill_rules."https://login.uni-graz.at/*"]]
+selector = "span#input-error"
+action = "stop"

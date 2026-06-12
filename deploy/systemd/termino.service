@@ -1,0 +1,26 @@
+[Unit]
+Description=Daily Termino reminder run
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=termino
+Group=termino
+WorkingDirectory=/opt/termino
+Environment="HOME=/home/termino"
+Environment="PYTHON_KEYRING_BACKEND=keyrings.alt.file.PlaintextKeyring"
+Environment="UNI_GRAZ_EMAIL=your.account@edu.uni-graz.at"
+
+# VPN hochfahren als Pre-Hook (idempotent - wenn schon up, kein Problem).
+ExecStartPre=/opt/termino/scripts/vpn_up.sh
+
+# Eigentlicher Lauf.
+ExecStart=/home/termino/.local/bin/uv run --project /opt/termino python /opt/termino/main.py
+
+# VPN runter als Post-Hook (laeuft auch bei Fehler im Hauptlauf).
+ExecStopPost=/opt/termino/scripts/vpn_down.sh
+
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=600

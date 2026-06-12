@@ -1,0 +1,6 @@
+# Host-side udev rule: make /dev/net/tun world-accessible so the unprivileged
+# LXC can use it. Install on the Proxmox HOST as
+# /etc/udev/rules.d/90-tun-lxc.rules, then:
+#   echo tun > /etc/modules-load.d/tun.conf
+#   udevadm control --reload-rules && udevadm trigger /dev/net/tun
+KERNEL=="tun", MODE="0666"

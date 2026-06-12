@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Termino daily at 06:00
+
+[Timer]
+OnCalendar=*-*-* 06:00:00 Europe/Vienna
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

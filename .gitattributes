@@ -1,0 +1,5 @@
+# Linux deployment artifacts and shell scripts must keep LF line endings even
+# when edited on Windows - bash/systemd on the server choke on CRLF (\r in the
+# shebang is the classic failure).
+*.sh        text eol=lf
+deploy/**   text eol=lf

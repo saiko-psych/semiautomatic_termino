@@ -1,17 +1,18 @@
-# RECONSTRUCTED from the behaviour spec in the production status report
-# (2026-06-01), NOT extracted verbatim from the running server. Verify against
-# the live unit and replace if it differs:
+# PARTIALLY RECONSTRUCTED: the watchdog SCRIPT (path/behaviour/exit-codes) is
+# verified against CT 131, but the live .service unit itself was not captured.
+# Verify User=/ExecStart against the running unit:
 #     systemctl cat termino-watchdog.service
+# The live script is root-owned at /usr/local/bin/termino_watchdog.sh, so this
+# leaves User unset (runs as root); adjust if your unit differs.
 [Unit]
 Description=Termino watchdog - alert if today's daily run did not succeed
 After=network-online.target
 
 [Service]
 Type=oneshot
-User=termino
-Group=termino
-# ntfy.sh topic to push alerts to (half-secret: whoever knows it can read/post).
+# ntfy.sh topic for alerts (half-secret). The script also accepts NTFY_TOPIC
+# from its own default if this is unset.
 Environment="NTFY_TOPIC=<NTFY_TOPIC>"
-ExecStart=/opt/termino/scripts/watchdog.sh
+ExecStart=/usr/local/bin/termino_watchdog.sh
 StandardOutput=journal
 StandardError=journal

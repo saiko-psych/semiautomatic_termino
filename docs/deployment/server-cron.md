@@ -139,11 +139,11 @@ tunnel always comes back down). The timer fires daily 06:00 Europe/Vienna with a
 
 ### Optional watchdog
 
-`deploy/systemd/termino-watchdog.{service,timer}` + `deploy/scripts/watchdog.sh`
-check at 07:00 whether the run succeeded and push an [ntfy.sh](https://ntfy.sh)
-alert to your phone if not. **These three files are reconstructed from a
-behaviour spec, not captured verbatim** — verify against your live units before
-relying on them (see `deploy/README.md`).
+`deploy/systemd/termino-watchdog.{service,timer}` + `deploy/scripts/termino_watchdog.sh`
+(installed to `/usr/local/bin/termino_watchdog.sh`) check at 07:00 whether the run
+succeeded and push an [ntfy.sh](https://ntfy.sh) alert to your phone if not. The
+timer is verified against the production box; the watchdog script body and the
+`.service` unit are reconstructed (verify them — see `deploy/README.md`).
 
 ## 8. Verify a run
 

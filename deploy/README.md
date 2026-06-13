@@ -14,11 +14,11 @@ lives in the docs: [Server / cron deployment](../docs/deployment/server-cron.md)
 |---|---|---|
 | `scripts/vpn_up.sh` | `/opt/termino/scripts/vpn_up.sh` | SAML auth + tunnel up (ExecStartPre) |
 | `scripts/vpn_down.sh` | `/opt/termino/scripts/vpn_down.sh` | tunnel down (ExecStopPost) |
-| `scripts/watchdog.sh` | `/opt/termino/scripts/watchdog.sh` | **reconstructed** - see caveat below |
+| `scripts/termino_watchdog.sh` | `/usr/local/bin/termino_watchdog.sh` (root:root, 0755) | reconstructed body - see caveat below |
 | `systemd/termino.service` | `/etc/systemd/system/termino.service` | the daily run |
 | `systemd/termino.timer` | `/etc/systemd/system/termino.timer` | 06:00 Europe/Vienna |
-| `systemd/termino-watchdog.service` | `/etc/systemd/system/...` | **reconstructed** |
-| `systemd/termino-watchdog.timer` | `/etc/systemd/system/...` | **reconstructed**, 07:00 |
+| `systemd/termino-watchdog.service` | `/etc/systemd/system/...` | reconstructed (unit not captured) |
+| `systemd/termino-watchdog.timer` | `/etc/systemd/system/...` | verified 2026-06-13, 07:00 |
 | `sudoers.d/openconnect-termino` | `/etc/sudoers.d/openconnect-termino` | NOPASSWD for openconnect, mode 0440 |
 | `openconnect-sso/config.toml.example` | `~termino/.config/openconnect-sso/config.toml` | Keycloak selectors, no secrets |
 | `lxc/ct.conf.snippet` | `/etc/pve/lxc/<CT_ID>.conf` (Proxmox host) | TUN passthrough |
@@ -37,19 +37,20 @@ Credentials (UGO password, TOTP seed, uniCLOUD/Termino app-passwords) are **neve
 in these files - they live in the OS keyring and are set once, interactively. See
 [Storing secrets](../docs/getting-started/secrets.md).
 
-## ⚠️ Reconstructed files
+## ⚠️ Reconstructed watchdog files
 
-`scripts/watchdog.sh`, `systemd/termino-watchdog.service` and
-`systemd/termino-watchdog.timer` were **rebuilt from the behaviour description**
-in the server status report, not copied verbatim from the running box. Before
-relying on them, compare with the live versions:
+The watchdog was reconciled against CT 131 on 2026-06-13:
+
+- `termino-watchdog.timer` - **verified** (07:00 Europe/Vienna, `Persistent`, `RandomizedDelaySec=120`).
+- `scripts/termino_watchdog.sh` - path, behaviour and exit codes (0=ok, 1=alert-sent, 2=alert-failed) verified, but the **exact body was not captured** - this is a faithful reconstruction.
+- `termino-watchdog.service` - the live `.service` unit was **not captured**; `User=`/`ExecStart` unverified (the script path `/usr/local/bin/termino_watchdog.sh` is confirmed).
+
+Before relying on the two reconstructed files, compare with the live versions and replace if they differ:
 
 ```bash
-systemctl cat termino-watchdog.service termino-watchdog.timer
-cat /opt/termino/scripts/watchdog.sh
+systemctl cat termino-watchdog.service
+diff /usr/local/bin/termino_watchdog.sh deploy/scripts/termino_watchdog.sh
 ```
-
-and replace these files if they differ.
 
 ## VPN: two paths, on purpose
 

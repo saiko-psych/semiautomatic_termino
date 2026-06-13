@@ -1,12 +1,12 @@
-# RECONSTRUCTED from the behaviour spec (runs 07:00 Europe/Vienna, one hour
-# after the daily run). Verify against the live unit:
-#     systemctl cat termino-watchdog.timer
+# Verified against CT 131 (2026-06-13): runs 07:00 Europe/Vienna, one hour after
+# the daily run.
 [Unit]
 Description=Run the Termino watchdog daily at 07:00
 
 [Timer]
 OnCalendar=*-*-* 07:00:00 Europe/Vienna
 Persistent=true
+RandomizedDelaySec=120
 
 [Install]
 WantedBy=timers.target
